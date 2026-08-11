@@ -1,0 +1,23 @@
+# Rahasia Firebase (Service Account)
+*.json
+
+#github
+.git/*
+
+# File Laporan AI yang di-generate otomatis
+*.txt
+
+# Cache Python
+__pycache__/
+
+# Abaikan semua di root, lalu izinkan yang memang perlu di-track (m16)
+/*
+!/.gitignore
+!/CLAUDE.md
+!/index.html
+!/laporan_and_fixing_plan.md
+!/Wemos_BMP280_ATH20_Firebase/
+
+# Rahasia Firmware (JANGAN DI-COMMIT)
+secrets.h
+Wemos_BMP280_ATH20_Firebase/secrets.h
