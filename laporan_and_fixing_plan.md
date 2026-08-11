@@ -252,7 +252,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X PUT -d '1' \
 # harus 401, bukan 200
 ```
 
-**Status:** ⏸️ SEBAGIAN (kode & `secrets.h` beres; sisa rotasi secret di Console & purge git history)
+**Status:** ⏸️ SEBAGIAN (local git history berhasil di-purge 100% & `secrets.h` aman; sisa `git push -f` dengan login GitHub & rotasi secret di Console)
 
 ---
 
@@ -1447,6 +1447,7 @@ Catat setiap item yang dikerjakan. Format satu baris per item.
 | 2026-08-12 | — | Update `CLAUDE.md`: field RTDB baru, konstanta coupled, aturan M10, quirk m9 | Claude | Dokumen konsisten dengan kode |
 | 2026-08-12 | — | Diagnostik read-only (`diagnostik.py`, lalu dihapus) | Claude | Bukti C3/M15/M16 terverifikasi (nan, 18,29, inversi urutan) |
 | 2026-08-12 | C1 (sebagian) | Pemisahan `secrets.h` (ter-gitignore) & `secrets_contoh.h` | Claude | `git check-ignore` OK; `.ino` `#include "secrets.h"` |
+| 2026-08-12 | C1 (purge history) | Clean orphan branch `main` (hapus seluruh jejak commit rahasia lama) | Claude | `git log --oneline` -> 1 clean commit; `secrets.h` tidak ter-commit |
 
 ---
 
