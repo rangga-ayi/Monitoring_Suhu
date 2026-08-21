@@ -4,7 +4,7 @@
 // --- KREDENSIAL FIREBASE (TEMPLATE/CONTOH) ---
 // Salin file ini menjadi secrets.h dan isi dengan kredensial asli Anda.
 #define FIREBASE_AUTH "TOKEN_DATABASE_FIREBASE_ANDA" 
-#define DATABASE_URL "rangga-data-base-node-app.asia-southeast1.firebasedatabase.app"
+#define DATABASE_URL "url-data-base-anda-app.asia-southeast1.firebasedatabase.app"
 
 // --- KREDENSIAL WIFI (TEMPLATE/CONTOH) ---
 #define WIFI_SSID_1 "NAMA_WIFI_1"
