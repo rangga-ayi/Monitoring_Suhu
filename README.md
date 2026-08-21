@@ -238,7 +238,6 @@ Skrip akan mencadangkan seluruh data riwayat ke file `Backup_Firebase_YYYY-MM-DD
 ├── analisa_lab_contoh.py                # Template analitik AI (Ollama + OpenWeather/WAQI)
 ├── maintenance_db_contoh.py             # Template backup dan pembersihan data Firebase
 ├── firebase_adminsdk_contoh.json        # Template struktur Firebase Service Account Key
-├── CLAUDE.md                            # Panduan teknis arsitektur proyek
 ├── LICENSE                              # Lisensi proyek (MIT)
 └── README.md                            # Dokumentasi utama proyek
 ```
