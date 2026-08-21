@@ -1,23 +1,32 @@
-# Rahasia Firebase (Service Account)
+# ==========================================
+# GITIGNORE - IOT MONITORING SUHU
+# ==========================================
+
+# Rahasia Firebase Service Account & Backup JSON
 *.json
+!/firebase_adminsdk_contoh.json
 
-#github
-.git/*
-
-# File Laporan AI yang di-generate otomatis
+# File Log & Data Dump
 *.txt
+*.csv
 
 # Cache Python
 __pycache__/
+*.pyc
 
-# Abaikan semua di root, lalu izinkan yang memang perlu di-track (m16)
+# Abaikan seluruh root, lalu izinkan file publik/template yang ditrack
 /*
 !/.gitignore
-!/CLAUDE.md
+!/README.md
+!/LICENSE
 !/index.html
-!/laporan_and_fixing_plan.md
+!/analisa_lab_contoh.py
+!/maintenance_db_contoh.py
+!/firebase_adminsdk_contoh.json
 !/Wemos_BMP280_ATH20_Firebase/
 
-# Rahasia Firmware (JANGAN DI-COMMIT)
+# Rahasia Firmware & Skrip Nyata (JANGAN DI-COMMIT)
 secrets.h
 Wemos_BMP280_ATH20_Firebase/secrets.h
+analisa_lab.py
+maintenance_db.py
