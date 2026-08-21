@@ -5,230 +5,656 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Monitoring System - Deep Sleep Mode</title>
 
+    <!-- Bootstrap 5 & FontAwesome -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css" integrity="sha512-9xKTRVabjVeZmc+GUW8GgSmcREDunMM+Dt/GrzchfN8tkwHizc5RP4Ok/MXFFy5rIjJjzhndFScTceq5e6GvVQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"
+      integrity="sha512-9xKTRVabjVeZmc+GUW8GgSmcREDunMM+Dt/GrzchfN8tkwHizc5RP4Ok/MXFFy5rIjJjzhndFScTceq5e6GvVQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+
+    <!-- Google Fonts: Plus Jakarta Sans (Interface) & JetBrains Mono (Telemetry/Numbers) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <script src="https://bernii.github.io/gauge.js/dist/gauge.min.js"></script>
-
-    <!-- Tambahkan Bootstrap JS (untuk fitur Tooltip & Popover) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Tambahkan Google Font 'Poppins' agar lebih modern -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
     <style>
-      body {
-        background: linear-gradient(135deg, #0f172a, #1e293b);
-        color: #e2e8f0;
-        font-family: "Poppins", sans-serif;
-        min-height: 100vh;
+      :root {
+        --bg-base: #080c14;
+        --bg-surface: #0e1524;
+        --bg-surface-elevated: #141d30;
+        --border-subtle: rgba(255, 255, 255, 0.08);
+        --border-highlight: rgba(255, 255, 255, 0.16);
+        --text-main: #f1f5f9;
+        --text-muted: #94a3b8;
+        --text-subtle: #64748b;
+        --accent-cyan: #06b6d4;
+        --accent-blue: #3b82f6;
+        --accent-emerald: #10b981;
+        --accent-amber: #f59e0b;
+        --accent-rose: #f43f5e;
+        --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--bg-base);
+        background-image: 
+          radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.2), transparent 45%),
+          radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.09), transparent 35%),
+          linear-gradient(to bottom, transparent, var(--bg-base));
+        background-attachment: fixed;
+        color: var(--text-main);
+        font-family: var(--font-ui);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* Custom Modern Scrollbars */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(8, 12, 20, 0.6);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      /* Focus-Visible Accessibility Standard */
+      *:focus-visible {
+        outline: 2px solid var(--accent-cyan) !important;
+        outline-offset: 2px !important;
+      }
+
+      /* Base Telemetry Cards */
       .card {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        margin-bottom: 20px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background: rgba(14, 21, 36, 0.75);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        margin-bottom: 24px;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
       }
       .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+        transform: translateY(-3px);
+        border-color: var(--border-highlight);
+        box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
       }
+
       .card-header {
         background-color: transparent;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        font-weight: 600;
-        color: #f8fafc;
-        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 1rem 1.25rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-muted);
       }
+
+      /* Telemetry Numbers & Units */
       .metric-value {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
         font-size: 2.5rem;
         font-weight: 700;
-        text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        letter-spacing: -0.03em;
+        line-height: 1.1;
       }
       .unit {
-        font-size: 1.1rem;
-        opacity: 0.7;
-        font-weight: normal;
+        font-family: var(--font-ui);
+        font-size: 1.05rem;
+        font-weight: 500;
+        opacity: 0.65;
+        letter-spacing: normal;
       }
 
-      /* Warna Khusus Parameter dengan efek Glow */
-      .text-temp { color: #ff8787; text-shadow: 0 0 15px rgba(255, 135, 135, 0.4); }
-      .text-hum { color: #74c0fc; text-shadow: 0 0 15px rgba(116, 192, 252, 0.4); }
-      .text-press { color: #38d9a9; text-shadow: 0 0 15px rgba(56, 217, 169, 0.4); }
+      .mono-text {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
 
-      /* Custom Table untuk Dark Mode */
-      .table { 
+      /* Glow & Tone Utilities */
+      .text-temp { color: #fb7185; text-shadow: 0 0 20px rgba(251, 113, 133, 0.35); }
+      .text-hum { color: #38bdf8; text-shadow: 0 0 20px rgba(56, 189, 248, 0.35); }
+      .text-press { color: #34d399; text-shadow: 0 0 20px rgba(52, 211, 153, 0.35); }
+
+      /* Live Pulse Dot */
+      .pulse-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .pulse-dot.online {
+        background-color: var(--accent-emerald);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulseGreen 2s infinite;
+      }
+      .pulse-dot.offline {
+        background-color: var(--accent-rose);
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+        animation: pulseRed 2s infinite;
+      }
+      .pulse-dot.waiting {
+        background-color: var(--text-subtle);
+      }
+
+      @keyframes pulseGreen {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      }
+      @keyframes pulseRed {
+        0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+      }
+
+      /* Header & Unified Telemetry Status Strip */
+      .app-header {
+        margin-bottom: 1.25rem;
+      }
+      .telemetry-status-strip {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(14, 21, 36, 0.78);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid var(--border-subtle);
+        border-radius: 9999px;
+        padding: 0.45rem 1rem;
+        box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+      }
+      .status-strip-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .status-strip-divider {
+        width: 1px;
+        height: 14px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+      @media (max-width: 767.98px) {
+        .telemetry-status-strip {
+          display: flex;
+          width: 100%;
+          justify-content: space-between;
+          padding: 0.5rem 0.75rem;
+          border-radius: 12px;
+          margin-top: 0.6rem;
+          gap: 4px;
+        }
+        .status-strip-item {
+          font-size: 0.72rem;
+          gap: 4px;
+        }
+        .app-header h1 {
+          font-size: 1.25rem !important;
+        }
+      }
+
+      /* Badges & Status Pills */
+      .badge-telemetry {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.45rem 0.8rem;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        letter-spacing: 0.02em;
+        transition: all 0.2s ease;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.3rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-subtle);
+        transition: all 0.2s ease;
+      }
+
+      /* Buttons & Micro-Interactions */
+      .btn {
+        font-weight: 600;
+        font-size: 0.85rem;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        min-height: 38px;
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-ai-insight {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.15));
+        border: 1px solid rgba(6, 182, 212, 0.4);
+        color: #67e8f9;
+        box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+      }
+      .btn-ai-insight:hover {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.28), rgba(59, 130, 246, 0.28));
+        border-color: #67e8f9;
+        color: #fff;
+        box-shadow: 0 0 25px rgba(6, 182, 212, 0.35);
+      }
+
+      /* Custom Table */
+      .table {
         --bs-table-bg: transparent;
-        --bs-table-color: #e2e8f0;
-        --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+        --bs-table-color: var(--text-main);
+        --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
         --bs-table-hover-color: #ffffff;
-        --bs-table-border-color: rgba(255, 255, 255, 0.05);
+        --bs-table-border-color: var(--border-subtle);
+        margin-bottom: 0;
+        font-size: 0.88rem;
       }
-      thead.table-dark-custom th { 
-        background-color: rgba(0, 0, 0, 0.2); 
-        color: #cbd5e1; 
+      .table th {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+        color: var(--text-muted);
+        background-color: rgba(10, 16, 28, 0.85) !important;
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 0.85rem 1rem;
+        white-space: nowrap;
       }
-      
-      /* Custom Pagination Theme */
-      .pagination {
-        --bs-pagination-bg: rgba(255, 255, 255, 0.05);
-        --bs-pagination-border-color: rgba(255, 255, 255, 0.1);
-        --bs-pagination-color: #cbd5e1;
-        --bs-pagination-hover-bg: rgba(255, 255, 255, 0.1);
-        --bs-pagination-hover-color: #fff;
-        --bs-pagination-active-bg: #0d6efd;
+      .table td {
+        padding: 0.85rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.15s ease, background-color 0.15s ease;
+      }
+      th.sortable:hover {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.08) !important;
+      }
+      th.sortable.active {
+        color: var(--accent-cyan);
       }
 
-      /* Custom Modal & Form untuk Dark Mode / Glassmorphism */
-      .modal-content {
-        background: rgba(30, 41, 59, 0.95);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 15px 50px 0 rgba(0, 0, 0, 0.5);
-        color: #e2e8f0;
+      /* Pagination */
+      .pagination {
+        --bs-pagination-bg: rgba(255, 255, 255, 0.03);
+        --bs-pagination-border-color: var(--border-subtle);
+        --bs-pagination-color: var(--text-muted);
+        --bs-pagination-hover-bg: rgba(255, 255, 255, 0.08);
+        --bs-pagination-hover-color: #ffffff;
+        --bs-pagination-active-bg: var(--accent-blue);
+        --bs-pagination-active-border-color: var(--accent-blue);
+        gap: 4px;
       }
-      .modal-header { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-      .modal-footer { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+      .page-item .page-link {
+        border-radius: 8px !important;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        padding: 0.4rem 0.8rem;
+        min-width: 36px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Modals */
+      .modal-content {
+        background: rgba(13, 20, 35, 0.96);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border-highlight);
+        border-radius: 18px;
+        box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.8);
+        color: var(--text-main);
+      }
+      .modal-header {
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 1.25rem 1.5rem;
+      }
+      .modal-footer {
+        border-top: 1px solid var(--border-subtle);
+        padding: 1.25rem 1.5rem;
+      }
+      .modal-body {
+        padding: 1.5rem;
+      }
+
+      /* Form controls & Color Scheme */
+      .form-control, .form-select {
+        background-color: rgba(8, 12, 20, 0.85);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-main);
+        border-radius: 10px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.9rem;
+        color-scheme: dark;
+      }
+      .form-control:focus, .form-select:focus {
+        background-color: rgba(10, 16, 28, 0.98);
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
+        color: #fff;
+      }
+
+      /* Option Card Container for Modals (Thumb-friendly UX) */
+      .option-card-label {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-subtle);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 0.5rem;
+        min-height: 48px;
+        user-select: none;
+      }
+      .option-card-label:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: var(--border-highlight);
+      }
+      .form-check-input {
+        cursor: pointer;
+        flex-shrink: 0;
+        margin-right: 0.75rem;
+      }
+      .form-check-input:checked ~ .option-card-text {
+        font-weight: 700;
+        color: #67e8f9;
+      }
+      .option-card-label:has(.form-check-input:checked) {
+        background: rgba(6, 182, 212, 0.08);
+        border-color: rgba(6, 182, 212, 0.4);
+        box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
+      }
+
+      /* Modal inline alert feedback */
+      .modal-feedback {
+        display: none;
+        padding: 0.6rem 0.9rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-top: 0.75rem;
+      }
+      .modal-feedback.show {
+        display: block;
+      }
+
+      /* AI Markdown Typography Inside Modal */
+      #aiContent {
+        line-height: 1.68;
+        font-size: 0.94rem;
+        color: #cbd5e1;
+      }
+      #aiContent h1, #aiContent h2, #aiContent h3, #aiContent h4 {
+        color: #f8fafc;
+        margin-top: 1.25rem;
+        margin-bottom: 0.75rem;
+        font-weight: 700;
+      }
+      #aiContent h2 { font-size: 1.25rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.35rem; }
+      #aiContent h3 { font-size: 1.1rem; }
+      #aiContent blockquote {
+        border-left: 3px solid var(--accent-cyan);
+        padding-left: 1rem;
+        margin: 1rem 0;
+        color: #94a3b8;
+        background: rgba(6, 182, 212, 0.05);
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-radius: 0 8px 8px 0;
+      }
+      #aiContent ul, #aiContent ol {
+        padding-left: 1.4rem;
+      }
+      #aiContent code {
+        font-family: var(--font-mono);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 0.15rem 0.35rem;
+        border-radius: 4px;
+        color: #38bdf8;
+        font-size: 0.88em;
+      }
+
+      /* Alert styling */
+      .alert-telemetry-kritis {
+        background: rgba(244, 63, 94, 0.12);
+        border: 1px solid rgba(244, 63, 94, 0.4);
+        color: #fecdd3;
+        border-radius: 12px;
+        backdrop-filter: blur(8px);
+      }
     </style>
   </head>
   <body>
-    <div class="container py-4 py-sm-5">
-      <div class="row mb-4 align-items-center">
-        <div class="col-md-8 d-flex align-items-center flex-wrap gap-3">
-          <h2 class="fw-bold text-white mb-0">
-            <i class="fas fa-microchip me-2"></i>Monitoring System
-          </h2>
-          <button class="btn btn-outline-info rounded-pill" data-bs-toggle="modal" data-bs-target="#aiModal" style="box-shadow: 0 0 10px rgba(13, 202, 240, 0.3);">
-            <i class="fas fa-robot me-1"></i> AI Insight
-          </button>
+    <div class="container py-3 py-sm-4">
+      <!-- TOP NAVIGATION & TELEMETRY STATUS BAR -->
+      <header class="app-header">
+        <div class="row align-items-center g-2 g-md-3">
+          <div class="col-md-6 d-flex align-items-center justify-content-between">
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="pulse-dot online" id="liveDot" aria-hidden="true"></span>
+                <span class="text-uppercase fw-bold text-muted small" style="letter-spacing: 0.08em; font-size: 0.72rem;">IoT Lab Telemetry</span>
+              </div>
+              <h1 class="h3 fw-bold text-white mb-0 mt-1 d-flex align-items-center gap-2" style="letter-spacing: -0.02em;">
+                <i class="fas fa-microchip text-info opacity-75" aria-hidden="true"></i> Monitoring System
+              </h1>
+            </div>
+            <button
+              class="btn btn-ai-insight rounded-pill px-3 py-1 d-md-none"
+              data-bs-toggle="modal"
+              data-bs-target="#aiModal"
+              aria-label="Buka Analisis AI Insight Lingkungan"
+            >
+              <i class="fas fa-sparkles me-1" aria-hidden="true"></i> AI Insight
+            </button>
+          </div>
+          
+          <div class="col-md-6 text-md-end d-flex align-items-center justify-content-md-end gap-2 flex-wrap">
+            <button
+              class="btn btn-ai-insight rounded-pill px-3 py-2 d-none d-md-inline-flex align-items-center"
+              data-bs-toggle="modal"
+              data-bs-target="#aiModal"
+              aria-label="Buka Analisis AI Insight Lingkungan"
+            >
+              <i class="fas fa-sparkles me-1" aria-hidden="true"></i> AI Insight
+            </button>
+
+            <!-- UNIFIED STATUS STRIP -->
+            <div class="telemetry-status-strip" role="status" aria-live="polite">
+              <div class="status-strip-item" id="statusConnection">
+                <i class="fas fa-wifi text-success opacity-90" aria-hidden="true"></i>
+                <span id="statusBadgeText" class="text-light">Menunggu...</span>
+              </div>
+              <div class="status-strip-divider" aria-hidden="true"></div>
+              <div class="status-strip-item" id="statusBattery">
+                <i class="fas fa-battery-half text-info opacity-90" id="batteryIcon" aria-hidden="true"></i>
+                <span id="batteryBadgeText" class="text-light">--%</span>
+              </div>
+              <div class="status-strip-divider" aria-hidden="true"></div>
+              <div class="status-strip-item text-secondary" id="statusSync">
+                <i class="far fa-clock opacity-75" aria-hidden="true"></i>
+                <span id="lastUpdate" class="text-light opacity-90">Menunggu...</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="col-md-4 text-md-end mt-2 mt-md-0">
-          <span id="statusBadge" class="badge bg-secondary p-2"><i class="fas fa-wifi me-1"></i>Status: Menunggu...</span>
-          <span class="badge bg-info p-2 ms-1" id="batteryBadge" style="display:none;"><i class="fas fa-battery-half"></i> --%</span>
-          <div class="mt-1 small text-secondary">
-            Last Sync: <span id="lastUpdate">Menunggu...</span>
+      </header>
+
+      <!-- M13: Banner Peringatan Baterai Kritis -->
+      <div id="peringatanBaterai" class="alert alert-telemetry-kritis d-none mb-4" role="alert" aria-live="assertive">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-triangle-exclamation fa-lg me-3 text-danger" aria-hidden="true"></i>
+          <div>
+            <strong class="text-white">Baterai Kritis Terdeteksi!</strong>
+            <span id="peringatanBateraiDetail" class="d-block small mt-1"></span>
           </div>
         </div>
       </div>
 
-      <!-- M13: banner peringatan baterai kritis (melengkapi C2 di sisi UI) -->
-      <div id="peringatanBaterai" class="alert alert-danger d-none" role="alert">
-        <i class="fas fa-battery-empty me-2"></i>
-        <strong>Baterai kritis.</strong> <span id="peringatanBateraiDetail"></span>
-      </div>
-
-      <div class="row pb-4">
-        <div class="col-md-4 pb-4">
-          <div class="card p-3 text-center h-100 d-flex flex-column justify-content-center">
+      <!-- 3 METRIC CARDS (TEMPERATUR, KELEMBAPAN, TEKANAN UDARA) -->
+      <div class="row pb-2">
+        <div class="col-lg-4 col-md-6 pb-4">
+          <div class="card p-3 text-center h-100 d-flex flex-column justify-content-between">
             <div class="card-header d-flex justify-content-between align-items-center">
-              <span>Temperatur</span>
-              <i id="tooltipSuhu" class="fas fa-info-circle text-secondary" style="cursor: help;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom"></i>
+              <span><i class="fas fa-temperature-half me-1 text-danger opacity-75" aria-hidden="true"></i> Temperatur</span>
+              <i id="tooltipSuhu" class="fas fa-circle-info text-secondary" role="button" tabindex="0" aria-label="Informasi ambang batas temperatur" style="cursor: help;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom"></i>
             </div>
-            <div class="card-body">
-              <canvas id="gaugeSuhu" height="120"></canvas>
-              <div class="metric-value text-temp">
+            <div class="card-body py-3">
+              <canvas id="gaugeSuhu" height="120" aria-label="Gauge visualisasi temperatur"></canvas>
+              <div class="metric-value text-temp mt-2">
                 <span id="valSuhu">--</span><span class="unit"> °C</span>
               </div>
-              <div id="statusSuhu" class="mt-1 fw-bold text-secondary" style="font-size: 0.95rem;">Menunggu data...</div>
+              <div class="mt-2">
+                <span id="statusSuhu" class="status-pill text-secondary">Menunggu data...</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-4 pb-4">
-          <div class="card p-3 text-center h-100 d-flex flex-column justify-content-center">
+        <div class="col-lg-4 col-md-6 pb-4">
+          <div class="card p-3 text-center h-100 d-flex flex-column justify-content-between">
             <div class="card-header d-flex justify-content-between align-items-center">
-              <span>Kelembapan</span>
-              <i id="tooltipHum" class="fas fa-info-circle text-secondary" style="cursor: help;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom"></i>
+              <span><i class="fas fa-droplet me-1 text-info opacity-75" aria-hidden="true"></i> Kelembapan</span>
+              <i id="tooltipHum" class="fas fa-circle-info text-secondary" role="button" tabindex="0" aria-label="Informasi ambang batas kelembapan" style="cursor: help;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom"></i>
             </div>
-            <div class="card-body">
-              <canvas id="gaugeHum" height="120"></canvas>
-              <div class="metric-value text-hum">
+            <div class="card-body py-3">
+              <canvas id="gaugeHum" height="120" aria-label="Gauge visualisasi kelembapan"></canvas>
+              <div class="metric-value text-hum mt-2">
                 <span id="valHum">--</span><span class="unit"> %</span>
               </div>
-              <div id="statusHum" class="mt-1 fw-bold text-secondary" style="font-size: 0.95rem;">Menunggu data...</div>
+              <div class="mt-2">
+                <span id="statusHum" class="status-pill text-secondary">Menunggu data...</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-4 pb-4">
-          <div
-            class="card p-3 text-center h-100 d-flex flex-column justify-content-center"
-          >
-            <div class="card-header">Tekanan Udara</div>
-            <div class="card-body">
-              <div class="mb-2">
-                <i id="iconPress" class="fa-solid fa-smog fa-3x opacity-50"></i>
+        <div class="col-lg-4 col-md-12 pb-4">
+          <div class="card p-3 text-center h-100 d-flex flex-column justify-content-between">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-gauge-high me-1 text-emerald opacity-75" aria-hidden="true"></i> Tekanan Udara</span>
+              <span class="badge bg-dark border border-secondary text-secondary small mono-text">BMP280</span>
+            </div>
+            <div class="card-body py-3 d-flex flex-column justify-content-center">
+              <div class="my-2">
+                <i id="iconPress" class="fa-solid fa-smog fa-3x opacity-50 text-success" aria-hidden="true"></i>
               </div>
-              <div class="metric-value text-press">
+              <div class="metric-value text-press mt-2">
                 <span id="valPress">--</span><span class="unit"> hPa</span>
               </div>
-              <div id="statusPress" class="mt-1 fw-bold text-secondary" style="font-size: 0.95rem;">Menunggu data...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col-12">
-          <div class="card">
-            <div
-              class="card-header d-flex justify-content-between align-items-center"
-            >
-              <span><i class="fas fa-chart-line me-2"></i>Grafik Riwayat</span>
-            </div>
-            <div class="card-body" style="overflow-x: auto;">
-              <div style="height: 300px; min-width: 1000px;">
-                <canvas id="myChart"></canvas>
+              <div class="mt-2">
+                <span id="statusPress" class="status-pill text-secondary">Menunggu data...</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="row">
+      <!-- GRAFIK RIWAYAT -->
+      <div class="row mb-4">
         <div class="col-12">
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-              <span><i class="fas fa-list me-2"></i>Log Data <span id="viewModeLabel" class="badge bg-primary ms-1">Live</span></span>
-              <div>
-                <button id="btnFilter" class="btn btn-sm btn-outline-warning me-2">
-                  <i class="fas fa-filter me-1"></i>Filter
+              <span><i class="fas fa-chart-spline me-2 text-info" aria-hidden="true"></i>Grafik Riwayat Telemetri</span>
+              <span class="small text-muted mono-text"><i class="fas fa-circle-nodes me-1" aria-hidden="true"></i>Multi-Axis</span>
+            </div>
+            <div class="card-body p-3" style="overflow-x: auto;">
+              <div style="height: 320px; min-width: 900px;">
+                <canvas id="myChart" aria-label="Grafik garis telemetri suhu, kelembapan, dan baterai"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG DATA TABEL -->
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span><i class="fas fa-database me-2 text-cyan" aria-hidden="true"></i>Log Data Telemetri</span>
+                <span id="viewModeLabel" class="badge bg-primary-subtle text-primary border border-primary-subtle">Live</span>
+              </div>
+              <div class="d-flex gap-2">
+                <button id="btnFilter" class="btn btn-sm btn-outline-warning" aria-label="Buka filter data telemetri">
+                  <i class="fas fa-sliders me-1" aria-hidden="true"></i> Filter
                 </button>
-                <button id="btnExport" class="btn btn-sm btn-outline-info">
-                  <i class="fas fa-file-excel me-1"></i>Export CSV
+                <button id="btnExport" class="btn btn-sm btn-outline-info" aria-label="Ekspor data telemetri ke CSV">
+                  <i class="fas fa-file-arrow-down me-1" aria-hidden="true"></i> Export CSV
                 </button>
               </div>
             </div>
             <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 text-center">
-                <thead class="table-dark-custom">
+              <table class="table table-hover align-middle text-center">
+                <thead>
                   <tr>
-                    <th class="sortable" data-sort="timestamp">Waktu <i class="fas fa-sort ms-1"></i></th>
-                    <th class="sortable" data-sort="suhu">Suhu <i class="fas fa-sort ms-1"></i></th>
-                    <th class="sortable" data-sort="kelembapan">Hum <i class="fas fa-sort ms-1"></i></th>
-                    <th class="sortable" data-sort="tekanan">Tekanan <i class="fas fa-sort ms-1"></i></th>
-                    <th class="sortable" data-sort="tegangan_vcc">Baterai (V) <i class="fas fa-sort ms-1"></i></th>
-                    <th class="sortable" data-sort="koneksi">Koneksi (SSID) <i class="fas fa-sort ms-1"></i></th>
+                    <th class="sortable" data-sort="timestamp" tabindex="0" role="button" aria-label="Urutkan berdasarkan Waktu">Waktu <i class="fas fa-sort ms-1 opacity-50" aria-hidden="true"></i></th>
+                    <th class="sortable" data-sort="suhu" tabindex="0" role="button" aria-label="Urutkan berdasarkan Suhu">Suhu <i class="fas fa-sort ms-1 opacity-50" aria-hidden="true"></i></th>
+                    <th class="sortable" data-sort="kelembapan" tabindex="0" role="button" aria-label="Urutkan berdasarkan Kelembapan">Kelembapan <i class="fas fa-sort ms-1 opacity-50" aria-hidden="true"></i></th>
+                    <th class="sortable" data-sort="tekanan" tabindex="0" role="button" aria-label="Urutkan berdasarkan Tekanan">Tekanan <i class="fas fa-sort ms-1 opacity-50" aria-hidden="true"></i></th>
+                    <th class="sortable" data-sort="tegangan_vcc" tabindex="0" role="button" aria-label="Urutkan berdasarkan Tegangan Baterai">Baterai (V) <i class="fas fa-sort ms-1 opacity-50" aria-hidden="true"></i></th>
+                    <th class="sortable" data-sort="koneksi" tabindex="0" role="button" aria-label="Urutkan berdasarkan Koneksi SSID">Koneksi (SSID) <i class="fas fa-sort ms-1 opacity-50" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
-                <tbody id="tableBody"></tbody>
+                <tbody id="tableBody" class="mono-text"></tbody>
               </table>
             </div>
             <!-- Area Paginasi -->
-            <div class="card-footer bg-transparent border-0 d-flex justify-content-center pt-3 pb-2">
-              <nav aria-label="Page navigation" id="paginationNav" class="d-none">
+            <div class="card-footer bg-transparent border-0 d-flex justify-content-center pt-3 pb-3">
+              <nav aria-label="Navigasi Halaman Data Telemetri" id="paginationNav" class="d-none">
                 <ul class="pagination pagination-sm mb-0" id="paginationUl">
-                  <!-- Tombol Paginasi akan disuntikkan oleh JS -->
+                  <!-- Tombol Paginasi disuntikkan oleh JS -->
                 </ul>
               </nav>
             </div>
@@ -238,45 +664,51 @@
     </div>
     
     <!-- MODAL FILTER DATA -->
-    <div class="modal fade" id="filterModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
+    <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold"><i class="fas fa-filter me-2 text-warning"></i>Filter Tampilan Data</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <h5 class="modal-title fw-bold" id="filterModalLabel"><i class="fas fa-filter me-2 text-warning" aria-hidden="true"></i>Filter Tampilan Data</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
           </div>
           <div class="modal-body">
-            <form>
+            <form id="filterForm" onsubmit="return false;">
               <div class="mb-3">
-                <label class="form-label fw-bold">Pilih Mode Tampilan:</label>
-                <div class="form-check mb-2 border-bottom pb-2">
+                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Pilih Mode Tampilan:</label>
+                
+                <label class="option-card-label" for="filterLive">
                   <input class="form-check-input" type="radio" name="filterOption" id="filterLive" value="live" checked>
-                  <label class="form-check-label text-info fw-bold" for="filterLive">Live Real-time (30 Data Terakhir)</label>
-                </div>
-                <div class="form-check pt-1">
+                  <span class="option-card-text text-light">Live Real-time (30 Data Terakhir)</span>
+                </label>
+
+                <label class="option-card-label" for="filterLast">
                   <input class="form-check-input" type="radio" name="filterOption" id="filterLast" value="last">
-                  <label class="form-check-label" for="filterLast">Data Terakhir (Custom Jumlah)</label>
-                </div>
-                <div class="form-check">
+                  <span class="option-card-text text-light">Data Terakhir (Custom Jumlah)</span>
+                </label>
+
+                <label class="option-card-label" for="filterDate">
                   <input class="form-check-input" type="radio" name="filterOption" id="filterDate" value="date">
-                  <label class="form-check-label" for="filterDate">Berdasarkan Tanggal</label>
-                </div>
+                  <span class="option-card-text text-light">Berdasarkan Rentang Tanggal</span>
+                </label>
               </div>
+
               <div class="mb-3 d-none" id="filterLastDataInputGroup">
-                <label class="form-label">Jumlah Data yang Ditarik:</label>
-                <input type="number" class="form-control" id="filterLastDataCount" value="100" min="1">
+                <label for="filterLastDataCount" class="form-label small text-muted">Jumlah Data yang Ditarik:</label>
+                <input type="number" class="form-control" id="filterLastDataCount" value="100" min="1" max="5000">
               </div>
               <div class="mb-3 d-none" id="filterDateInputGroup">
-                <label class="form-label">Tanggal Mulai:</label>
+                <label for="filterStartDate" class="form-label small text-muted">Tanggal Mulai:</label>
                 <input type="date" class="form-control mb-2" id="filterStartDate">
-                <label class="form-label">Tanggal Akhir:</label>
+                <label for="filterEndDate" class="form-label small text-muted">Tanggal Akhir:</label>
                 <input type="date" class="form-control" id="filterEndDate">
               </div>
+
+              <div id="filterFeedback" class="modal-feedback alert alert-warning" role="alert"></div>
             </form>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-            <button type="button" class="btn btn-warning" id="btnConfirmFilter">Terapkan Filter</button>
+            <button type="button" class="btn btn-warning fw-bold text-dark" id="btnConfirmFilter">Terapkan Filter</button>
           </div>
         </div>
       </div>
@@ -284,71 +716,78 @@
 
     <!-- MODAL EXPORT CSV -->
     <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold" id="exportModalLabel"><i class="fas fa-file-csv me-2 text-success"></i>Export Data CSV</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <h5 class="modal-title fw-bold" id="exportModalLabel"><i class="fas fa-file-csv me-2 text-success" aria-hidden="true"></i>Export Data Telemetri CSV</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
           </div>
           <div class="modal-body">
-            <form id="exportForm">
+            <form id="exportForm" onsubmit="return false;">
               <div class="mb-3">
-                <label class="form-label fw-bold">Pilih Rentang Data:</label>
-                <div class="form-check">
+                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Pilih Rentang Data:</label>
+                
+                <label class="option-card-label" for="exportAll">
                   <input class="form-check-input" type="radio" name="exportOption" id="exportAll" value="all" checked>
-                  <label class="form-check-label" for="exportAll">Semua Data</label>
-                </div>
-                <div class="form-check">
+                  <span class="option-card-text text-light">Semua Data (Full Database)</span>
+                </label>
+
+                <label class="option-card-label" for="exportLast">
                   <input class="form-check-input" type="radio" name="exportOption" id="exportLast" value="last">
-                  <label class="form-check-label" for="exportLast">Data Terakhir (Custom Jumlah)</label>
-                </div>
-                <div class="form-check">
+                  <span class="option-card-text text-light">Data Terakhir (Custom Jumlah)</span>
+                </label>
+
+                <label class="option-card-label" for="exportDate">
                   <input class="form-check-input" type="radio" name="exportOption" id="exportDate" value="date">
-                  <label class="form-check-label" for="exportDate">Berdasarkan Tanggal</label>
-                </div>
+                  <span class="option-card-text text-light">Berdasarkan Rentang Tanggal</span>
+                </label>
               </div>
+
               <div class="mb-3 d-none" id="lastDataInputGroup">
-                <label for="lastDataCount" class="form-label">Jumlah Data Terakhir:</label>
-                <input type="number" class="form-control" id="lastDataCount" value="100" min="1">
+                <label for="lastDataCount" class="form-label small text-muted">Jumlah Data Terakhir:</label>
+                <input type="number" class="form-control" id="lastDataCount" value="100" min="1" max="10000">
               </div>
               <div class="mb-3 d-none" id="dateInputGroup">
-                <label for="startDate" class="form-label">Tanggal Mulai:</label>
+                <label for="startDate" class="form-label small text-muted">Tanggal Mulai:</label>
                 <input type="date" class="form-control mb-2" id="startDate">
-                <label for="endDate" class="form-label">Tanggal Akhir:</label>
+                <label for="endDate" class="form-label small text-muted">Tanggal Akhir:</label>
                 <input type="date" class="form-control" id="endDate">
               </div>
+
+              <div id="exportFeedback" class="modal-feedback alert alert-warning" role="alert"></div>
             </form>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-            <button type="button" class="btn btn-primary" id="btnConfirmExport">Unduh CSV</button>
+            <button type="button" class="btn btn-info fw-bold" id="btnConfirmExport"><i class="fas fa-download me-1" aria-hidden="true"></i>Unduh CSV</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- MODAL AI INSIGHT -->
-    <div class="modal fade" id="aiModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal fade" id="aiModal" tabindex="-1" aria-labelledby="aiModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header border-bottom border-secondary">
-            <h5 class="modal-title fw-bold text-info"><i class="fas fa-robot me-2"></i>Analisis AI Lingkungan</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="modal-header border-bottom border-secondary border-opacity-25">
+            <h5 class="modal-title fw-bold text-info" id="aiModalLabel"><i class="fas fa-robot me-2" aria-hidden="true"></i>Analisis AI Lingkungan & Telemetri</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
           </div>
-          <div class="modal-body" id="aiContent">
+          <div class="modal-body p-4" id="aiContent">
             <div class="text-center py-5">
-              <i class="fas fa-spinner fa-spin fa-3x text-secondary mb-3"></i>
+              <i class="fas fa-circle-notch fa-spin fa-3x text-info opacity-75 mb-3" aria-hidden="true"></i>
               <p class="text-secondary">Memuat insight AI dari server...</p>
             </div>
           </div>
-          <div class="modal-footer border-top border-secondary d-flex justify-content-between">
-            <small class="text-secondary" id="aiTimestamp">Terakhir diperbarui: -</small>
+          <div class="modal-footer border-top border-secondary border-opacity-25 d-flex justify-content-between">
+            <small class="text-secondary mono-text" id="aiTimestamp">Terakhir diperbarui: -</small>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
       import {
@@ -363,7 +802,7 @@
         endAt
       } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-      // --- 1. CONFIG FIREBASE ANDA (PASTE DISINI) ---
+      // --- 1. CONFIG FIREBASE ---
       const firebaseConfig = {
         apiKey: "AIzaSyChCfVML8dnCrGM_kP7MPfqQO8KYkikfe8",
         authDomain: "rangga-iot.firebaseapp.com",
@@ -380,8 +819,6 @@
       const db = getDatabase(app);
 
       // --- SUMBER TUNGGAL AMBANG KENYAMANAN (m8) ---
-      // Dipakai gauge staticZones, logika warna/status, dan teks tooltip.
-      // Edit cukup di sini — bukan di 3 tempat terpisah.
       const AMBANG = {
         suhu: [24, 29, 33],
         kelembapan: [40, 65, 80],
@@ -411,13 +848,13 @@
       // --- 2. SETUP GAUGE ---
       var opts = {
         angle: 0,
-        lineWidth: 0.2,
+        lineWidth: 0.22,
         radiusScale: 1,
-        pointer: { length: 0.5, strokeWidth: 0.035, color: "#ffffff" },
+        pointer: { length: 0.5, strokeWidth: 0.035, color: "#f8fafc" },
         limitMax: false,
         limitMin: false,
         highDpiSupport: true,
-        staticZones: buatZones("suhu", ["#0d6efd", "#30B32D", "#ffc107", "#dc3545"]),
+        staticZones: buatZones("suhu", ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]),
       };
 
       var gaugeSuhu = new Gauge(
@@ -427,16 +864,15 @@
       gaugeSuhu.setMinValue(0);
       gaugeSuhu.animationSpeed = 32;
 
-      // --- PERBAIKAN 1: Buat Opsi Baru agar Pointer Gauge tidak Bocor/Bentrok ---
       var optsHum = {
         angle: 0,
-        lineWidth: 0.2,
+        lineWidth: 0.22,
         radiusScale: 1,
-        pointer: { length: 0.5, strokeWidth: 0.035, color: "#ffffff" },
+        pointer: { length: 0.5, strokeWidth: 0.035, color: "#f8fafc" },
         limitMax: false,
         limitMin: false,
         highDpiSupport: true,
-        staticZones: buatZones("kelembapan", ["#ffc107", "#30B32D", "#0d6efd", "#dc3545"]),
+        staticZones: buatZones("kelembapan", ["#f59e0b", "#10b981", "#3b82f6", "#ef4444"]),
       };
 
       var gaugeHum = new Gauge(document.getElementById("gaugeHum")).setOptions(
@@ -455,31 +891,41 @@
           datasets: [
             {
               label: "Suhu (°C)",
-              borderColor: "#ff6b6b",
-              backgroundColor: "rgba(255, 107, 107, 0.1)",
+              borderColor: "#fb7185",
+              backgroundColor: "rgba(251, 113, 133, 0.12)",
               fill: true,
-              tension: 0.3,
-              spanGaps: true, // Menyambung garis jika ada data yang kosong (null)
+              tension: 0.35,
+              borderWidth: 2.5,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              spanGaps: true,
               data: [],
             },
             {
               label: "Kelembapan (%)",
-              borderColor: "#4dabf7",
-              backgroundColor: "rgba(77, 171, 247, 0.1)",
+              borderColor: "#38bdf8",
+              backgroundColor: "rgba(56, 189, 248, 0.12)",
               fill: true,
-              tension: 0.3,
-              spanGaps: true, // Menyambung garis jika ada data yang kosong (null)
+              tension: 0.35,
+              borderWidth: 2.5,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              spanGaps: true,
               data: [],
             },
             {
               label: "Baterai (V)",
-              borderColor: "#ffc107", // Warna Kuning
-              backgroundColor: "rgba(255, 193, 7, 0.1)",
-              fill: false, // Cukup garis saja agar tidak menutupi chart lain
-              tension: 0.3,
+              borderColor: "#f59e0b",
+              backgroundColor: "rgba(245, 158, 11, 0.05)",
+              borderDash: [5, 5],
+              fill: false,
+              tension: 0.35,
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHoverRadius: 5,
               spanGaps: true,
               data: [],
-              yAxisID: 'y1' // Ini adalah kunci untuk menggunakan sumbu Y kedua
+              yAxisID: 'y1'
             },
           ],
         },
@@ -489,45 +935,62 @@
           scales: { 
             x: { 
               display: true,
-              grid: { color: 'rgba(255, 255, 255, 0.05)' },
-              ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 45 }
+              grid: { color: 'rgba(255, 255, 255, 0.04)' },
+              ticks: { color: '#94a3b8', font: { family: "'JetBrains Mono', monospace", size: 11 }, maxRotation: 45, minRotation: 45 }
             },
-            y: { // Sumbu Y Kiri (Untuk Suhu & Kelembapan)
+            y: {
               type: 'linear',
               position: 'left',
-              min: 20,  // m10: jangan min 0 — garis suhu (±30) & hum (±75) jadi gepeng
+              min: 20,
               max: 100,
-              grid: { color: 'rgba(255, 255, 255, 0.05)' },
-              ticks: { color: '#94a3b8' }
+              grid: { color: 'rgba(255, 255, 255, 0.04)' },
+              ticks: { color: '#94a3b8', font: { family: "'JetBrains Mono', monospace", size: 11 } }
             },
-            y1: { // Sumbu Y Kanan (Untuk Baterai)
+            y1: {
               type: 'linear',
               position: 'right',
-              min: 3.0, // Atur rentang minimal tegangan baterai
-              max: 4.3, // Atur rentang maksimal
-              grid: {
-                drawOnChartArea: false, // Jangan gambar garis grid agar tidak bentrok
-              },
+              min: 3.0,
+              max: 4.3,
+              grid: { drawOnChartArea: false },
               ticks: {
-                color: '#ffc107', // Warna label sumbu
-                callback: value => value + 'V' // Tambahkan satuan 'V'
+                color: '#f59e0b',
+                font: { family: "'JetBrains Mono', monospace", size: 11 },
+                callback: value => value + 'V'
               }
             },
           },
           interaction: { mode: "index", intersect: false },
-          plugins: { legend: { labels: { color: '#e2e8f0' } } }
+          plugins: { 
+            legend: { 
+              labels: { 
+                color: '#e2e8f0',
+                font: { family: "'Plus Jakarta Sans', sans-serif", size: 12, weight: '600' },
+                boxWidth: 14,
+                boxHeight: 14,
+                usePointStyle: true,
+                pointStyle: 'circle'
+              } 
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.92)',
+              titleColor: '#f8fafc',
+              bodyColor: '#cbd5e1',
+              borderColor: 'rgba(255, 255, 255, 0.12)',
+              borderWidth: 1,
+              padding: 12,
+              boxPadding: 6,
+              usePointStyle: true,
+              titleFont: { family: "'JetBrains Mono', monospace", size: 12 },
+              bodyFont: { family: "'JetBrains Mono', monospace", size: 12 }
+            }
+          }
         },
       });
 
-      // --- PERBAIKAN: DEFINISIKAN REFERENCE DATABASE DULU ---
-      // 1. Tunjuk ke folder "RIWAYAT_LAB" (sesuaikan nama ini dengan path di Firebase-mu)
       const dbRef = ref(db, "RIWAYAT_LAB");
-
-      // 2. Buat Query untuk mengambil 30 data terakhir
       const historyRef = query(dbRef, limitToLast(30));
 
       // --- KURVA BATERAI Li-ion 1S (M13) ---
-      // [tegangan, persen] — ganti peta linier lama yang melebih-lebihkan sisa daya.
       const KURVA_BATERAI = [
         [3.30,   0], [3.50,  5], [3.65, 15], [3.75, 40],
         [3.85,  60], [3.95, 80], [4.05, 92], [4.15, 100],
@@ -544,84 +1007,90 @@
         return 100;
       }
 
-      // M14: escape HTML — SSID & field lain dari RTDB tak bisa dipercaya.
-      // Pakai charCodeAt numerik — entity bernama (& dll) diubah auto-formatter jadi
-      // karakter literal yang merusak string ini.
+      // M14: escape HTML
       const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g,
         (c) => "&#" + c.charCodeAt(0) + ";");
 
-      // --- FITUR BARU: LOGIKA STATUS ONLINE/OFFLINE ---
+      // --- LOGIKA STATUS ONLINE/OFFLINE ---
       let lastDataTimestamp = 0;
       let lastSSID = "";
 
-      // m2: jam klien bisa ngawur — selaraskan ke jam server via /.info/serverTimeOffset
       let offsetServerMs = 0;
       const serverNow = () => Date.now() + offsetServerMs;
       get(ref(db, "/.info/serverTimeOffset")).then((snap) => {
         offsetServerMs = snap.val() || 0;
         updateConnectionStatus();
-      }).catch(() => { /* offline — pakai jam klien apa adanya */ });
+      }).catch(() => { });
 
       function updateConnectionStatus() {
-        const statusBadge = document.getElementById("statusBadge");
-        if (lastDataTimestamp === 0) return; // Belum ada data masuk
+        const statusConnection = document.getElementById("statusConnection");
+        const liveDot = document.getElementById("liveDot");
+        if (lastDataTimestamp === 0) return;
 
         const now = serverNow();
         const diffMinutes = (now - lastDataTimestamp) / (1000 * 60);
 
-        // m1: interval nyata 4,87 mnt (RTC ESP ~5% cepat) + gap WiFi → 5,5 mnt = "Offline" palsu.
-        // Naikkan ke 7 mnt — masih jauh di bawah 2× interval normal.
         if (diffMinutes > 7) {
-          statusBadge.className = "badge bg-danger p-2";
-          statusBadge.innerHTML = `<i class="fas fa-wifi me-1"></i>Offline: -`;
+          if (statusConnection) {
+            statusConnection.innerHTML = `<i class="fas fa-triangle-exclamation text-danger me-1" aria-hidden="true"></i> <span class="text-danger fw-bold">Offline</span>`;
+          }
+          if (liveDot) { liveDot.className = "pulse-dot offline"; }
         } else {
-          statusBadge.className = "badge bg-success p-2";
-          statusBadge.innerHTML = `<i class="fas fa-wifi me-1"></i>Online: ${escapeHtml(lastSSID) || "?"}`;
+          const ssid = escapeHtml(lastSSID) || "?";
+          if (statusConnection) {
+            statusConnection.innerHTML = `<i class="fas fa-wifi text-success opacity-90 me-1" aria-hidden="true"></i> <span class="text-light">${ssid}</span>`;
+          }
+          if (liveDot) { liveDot.className = "pulse-dot online"; }
         }
       }
 
-      // Cek status koneksi setiap 30 detik di latar belakang
       setInterval(updateConnectionStatus, 30000);
 
-      // --- 4. LOGIKA UTAMA & MANAJEMEN STATE ---
+      // --- 4. LOGIKA UTAMA & STATE MANAGEMENT ---
       let unsubscribeLive = null;
       let isLiveMode = true;
-      let filteredDataArray = []; // Menyimpan data hasil filter
+      let filteredDataArray = [];
       let currentPage = 1;
-      const itemsPerPage = 30; // Batas tabel
-      let chartTimerDebounce = null; // m12: dipakai di onChildAdded agar chart tidak re-render 30×
+      const itemsPerPage = 30;
+      let chartTimerDebounce = null;
 
-      // --- FITUR BARU: Variabel & Fungsi Sorting Tabel ---
       let liveDataArray = [];
       let currentSortCol = null;
       let currentSortAsc = true;
 
-      // Listener Klik Header Tabel untuk Sorting
+      // Listener Klik & Keyboard Header Tabel untuk Sorting (Accessibility)
       document.querySelectorAll("th.sortable").forEach(th => {
-        th.addEventListener("click", () => {
+        const triggerSort = () => {
           const col = th.getAttribute("data-sort");
           if (currentSortCol === col) {
             currentSortAsc = !currentSortAsc;
           } else {
             currentSortCol = col;
-            currentSortAsc = true; // Default saat ganti kolom
+            currentSortAsc = true;
           }
           
-          // Perbarui UI Icon Panah
           document.querySelectorAll("th.sortable").forEach(el => {
             el.classList.remove("active");
-            el.querySelector("i").className = "fas fa-sort ms-1";
+            el.querySelector("i").className = "fas fa-sort ms-1 opacity-50";
+            el.setAttribute("aria-sort", "none");
           });
           th.classList.add("active");
-          th.querySelector("i").className = currentSortAsc ? "fas fa-sort-up ms-1" : "fas fa-sort-down ms-1";
+          th.querySelector("i").className = currentSortAsc ? "fas fa-sort-up ms-1 text-cyan" : "fas fa-sort-down ms-1 text-cyan";
+          th.setAttribute("aria-sort", currentSortAsc ? "ascending" : "descending");
 
-          // Render ulang tabel sesuai mode
           if (isLiveMode) renderTableRows(getSortedData(liveDataArray));
           else renderFilteredView();
+        };
+
+        th.addEventListener("click", triggerSort);
+        th.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            triggerSort();
+          }
         });
       });
 
-      // Logika Kalkulator Pengurutan
       function getSortedData(dataArray) {
         if (!currentSortCol) return dataArray;
         return [...dataArray].sort((a, b) => {
@@ -645,7 +1114,6 @@
         });
       }
 
-      // Pencetak Data ke UI DOM Table
       function renderTableRows(dataArray) {
         const tbody = document.getElementById("tableBody");
         tbody.innerHTML = "";
@@ -653,19 +1121,18 @@
           let waktuString = data.timestamp ? formatWaktu(new Date(data.timestamp)) : "-";
           const row = `
               <tr>
-                  <td class="small opacity-75">${waktuString}</td>
-                  <td>${data.suhu !== undefined ? data.suhu.toFixed(1) + '°' : '-'}</td>
-                  <td>${data.kelembapan !== undefined ? data.kelembapan.toFixed(1) + '%' : '-'}</td>
-                  <td>${data.tekanan !== undefined ? data.tekanan.toFixed(1) + ' hPa' : "-"}</td>
-                  <td>${data.tegangan_vcc !== undefined ? data.tegangan_vcc.toFixed(2) + 'V' : '-'}</td>
-                  <td><span class="badge bg-dark border border-secondary">${escapeHtml(data.koneksi) || "?"}</span></td>
+                  <td class="text-secondary small">${waktuString}</td>
+                  <td class="fw-semibold ${data.suhu > 33 ? 'text-danger' : (data.suhu < 24 ? 'text-info' : 'text-success')}">${data.suhu !== undefined ? data.suhu.toFixed(1) + '°C' : '-'}</td>
+                  <td class="fw-semibold ${data.kelembapan > 80 ? 'text-danger' : (data.kelembapan < 40 ? 'text-warning' : 'text-info')}">${data.kelembapan !== undefined ? data.kelembapan.toFixed(1) + '%' : '-'}</td>
+                  <td class="fw-semibold text-light">${data.tekanan !== undefined ? data.tekanan.toFixed(1) + ' hPa' : "-"}</td>
+                  <td><span class="badge ${data.tegangan_vcc <= 3.6 ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'}">${data.tegangan_vcc !== undefined ? data.tegangan_vcc.toFixed(2) + 'V' : '-'}</span></td>
+                  <td><span class="badge bg-dark border border-secondary text-secondary">${escapeHtml(data.koneksi) || "?"}</span></td>
               </tr>
           `;
           tbody.insertAdjacentHTML("beforeend", row);
         });
       }
 
-      // Fungsi Format Waktu (Diekstrak agar bisa dipakai berulang)
       const formatWaktu = (dt) => {
         const tgl = dt.getDate().toString().padStart(2, "0");
         const bln = dt.toLocaleString("id-ID", { month: "short" });
@@ -675,7 +1142,6 @@
         return `${tgl} ${bln} ${thn}, ${jam}:${mnt}`;
       };
 
-      // Fungsi Memperbarui Kartu/Gauge paling atas
       function updateCardsUI(data) {
         if (!data) return;
 
@@ -699,116 +1165,124 @@
 
         if (data.suhu !== undefined) {
           const tVal = data.suhu;
-          let cHex = "#ff8787"; 
-          let cRgba = "rgba(255, 135, 135, 0.4)";
+          let cHex = "#fb7185"; 
+          let cRgba = "rgba(251, 113, 133, 0.4)";
           let statusText = "";
           
-          const [at1, at2, at3] = AMBANG.suhu;   // m8: pakai sumber tunggal ambang
-          if (tVal <= at1) { cHex = "#0d6efd"; cRgba = "rgba(13, 110, 253, 0.4)"; statusText = "Sejuk (Malam/Hujan)"; }
-          else if (tVal <= at2) { cHex = "#30B32D"; cRgba = "rgba(48, 179, 45, 0.4)"; statusText = "Nyaman Termal"; }
-          else if (tVal <= at3) { cHex = "#ffc107"; cRgba = "rgba(255, 193, 7, 0.4)"; statusText = "Hangat / Gerah"; }
-          else { cHex = "#dc3545"; cRgba = "rgba(220, 53, 69, 0.4)"; statusText = "Kritis / Heat Trap"; }
+          const [at1, at2, at3] = AMBANG.suhu;
+          if (tVal <= at1) { cHex = "#3b82f6"; cRgba = "rgba(59, 130, 246, 0.4)"; statusText = "Sejuk (Malam/Hujan)"; }
+          else if (tVal <= at2) { cHex = "#10b981"; cRgba = "rgba(16, 185, 129, 0.4)"; statusText = "Nyaman Termal"; }
+          else if (tVal <= at3) { cHex = "#f59e0b"; cRgba = "rgba(245, 158, 11, 0.4)"; statusText = "Hangat / Gerah"; }
+          else { cHex = "#ef4444"; cRgba = "rgba(239, 68, 68, 0.4)"; statusText = "Kritis / Heat Trap"; }
 
           const boxSuhu = document.getElementById("valSuhu").parentElement;
           boxSuhu.style.color = cHex;
-          boxSuhu.style.textShadow = `0 0 15px ${cRgba}`;
+          boxSuhu.style.textShadow = `0 0 20px ${cRgba}`;
 
           const elStatusSuhu = document.getElementById("statusSuhu");
           elStatusSuhu.innerText = statusText;
           elStatusSuhu.style.color = cHex;
+          elStatusSuhu.style.backgroundColor = cRgba.replace('0.4', '0.12');
+          elStatusSuhu.style.borderColor = cRgba.replace('0.4', '0.35');
         }
 
         if (data.kelembapan !== undefined) {
           const hVal = data.kelembapan;
-          let cHex = "#74c0fc"; // Warna Biru Muda bawaan (Default)
-          let cRgba = "rgba(116, 192, 252, 0.4)";
+          let cHex = "#38bdf8";
+          let cRgba = "rgba(56, 189, 248, 0.4)";
           let statusText = "";
           
-          const [ah1, ah2, ah3] = AMBANG.kelembapan;   // m8: pakai sumber tunggal ambang
-          if (hVal <= ah1) { cHex = "#ffc107"; cRgba = "rgba(255, 193, 7, 0.4)"; statusText = "Terlalu Kering"; }
-          else if (hVal <= ah2) { cHex = "#30B32D"; cRgba = "rgba(48, 179, 45, 0.4)"; statusText = "Zona Nyaman"; }
-          else if (hVal <= ah3) { cHex = "#0d6efd"; cRgba = "rgba(13, 110, 253, 0.4)"; statusText = "Lembap Standar Tropis"; }
-          else { cHex = "#dc3545"; cRgba = "rgba(220, 53, 69, 0.4)"; statusText = "Risiko Tinggi Jamur"; }
+          const [ah1, ah2, ah3] = AMBANG.kelembapan;
+          if (hVal <= ah1) { cHex = "#f59e0b"; cRgba = "rgba(245, 158, 11, 0.4)"; statusText = "Terlalu Kering"; }
+          else if (hVal <= ah2) { cHex = "#10b981"; cRgba = "rgba(16, 185, 129, 0.4)"; statusText = "Zona Nyaman"; }
+          else if (hVal <= ah3) { cHex = "#3b82f6"; cRgba = "rgba(59, 130, 246, 0.4)"; statusText = "Lembap Standar Tropis"; }
+          else { cHex = "#ef4444"; cRgba = "rgba(239, 68, 68, 0.4)"; statusText = "Risiko Tinggi Jamur"; }
 
           const boxHum = document.getElementById("valHum").parentElement;
           boxHum.style.color = cHex;
-          boxHum.style.textShadow = `0 0 15px ${cRgba}`;
+          boxHum.style.textShadow = `0 0 20px ${cRgba}`;
 
           const elStatusHum = document.getElementById("statusHum");
           elStatusHum.innerText = statusText;
           elStatusHum.style.color = cHex;
+          elStatusHum.style.backgroundColor = cRgba.replace('0.4', '0.12');
+          elStatusHum.style.borderColor = cRgba.replace('0.4', '0.35');
         }
 
         if (data.tekanan !== undefined) {
           const pVal = data.tekanan;
-          let cHex = "#38d9a9"; // Warna Tosca
-          let cRgba = "rgba(56, 217, 169, 0.4)";
+          let cHex = "#34d399";
+          let cRgba = "rgba(52, 211, 153, 0.4)";
           let statusText = "";
           let iconClass = "fas fa-cloud fa-3x opacity-50";
 
           if (pVal < 1005) { 
-            cHex = "#0d6efd"; cRgba = "rgba(13, 110, 253, 0.4)";
+            cHex = "#3b82f6"; cRgba = "rgba(59, 130, 246, 0.4)";
             statusText = "Rendah (Hujan/Badai)"; 
-            iconClass = "fas fa-cloud-showers-heavy fa-3x opacity-50";
+            iconClass = "fas fa-cloud-showers-heavy fa-3x opacity-50 text-info";
           } else if (pVal <= 1013) { 
-            cHex = "#38d9a9"; cRgba = "rgba(56, 217, 169, 0.4)";
-            statusText = "Normal"; 
-            iconClass = "fas fa-cloud fa-3x opacity-50";
+            cHex = "#34d399"; cRgba = "rgba(52, 211, 153, 0.4)";
+            statusText = "Normal Standar"; 
+            iconClass = "fas fa-cloud fa-3x opacity-50 text-success";
           } else { 
-            cHex = "#ffc107"; cRgba = "rgba(255, 193, 7, 0.4)";
+            cHex = "#f59e0b"; cRgba = "rgba(245, 158, 11, 0.4)";
             statusText = "Tinggi (Cerah/Kering)"; 
-            iconClass = "fas fa-sun fa-3x opacity-50";
+            iconClass = "fas fa-sun fa-3x opacity-50 text-warning";
           }
 
           const boxPress = document.getElementById("valPress").parentElement;
           boxPress.style.color = cHex;
-          boxPress.style.textShadow = `0 0 15px ${cRgba}`;
+          boxPress.style.textShadow = `0 0 20px ${cRgba}`;
 
           const elStatusPress = document.getElementById("statusPress");
-          if (elStatusPress) { elStatusPress.innerText = statusText; elStatusPress.style.color = cHex; }
+          if (elStatusPress) { 
+            elStatusPress.innerText = statusText; 
+            elStatusPress.style.color = cHex;
+            elStatusPress.style.backgroundColor = cRgba.replace('0.4', '0.12');
+            elStatusPress.style.borderColor = cRgba.replace('0.4', '0.35');
+          }
           const elIconPress = document.getElementById("iconPress");
-          if (elIconPress) { elIconPress.className = iconClass; elIconPress.style.color = cHex; }
+          if (elIconPress) { elIconPress.className = iconClass; }
         }
 
         if (data.tegangan_vcc !== undefined) {
           let volt = data.tegangan_vcc;
           let batIcon = "fa-battery-full";
-          let bgClass = "bg-success";
+          let colorClass = "text-success";
           let batText = "";
           const banner = document.getElementById("peringatanBaterai");
           const bannerDetail = document.getElementById("peringatanBateraiDetail");
 
           if (volt <= 0.5) { 
-            batIcon = "fa-exclamation-triangle";
-            bgClass = "bg-danger";
-            batText = "Sensor Error (0V)";
+            batIcon = "fa-triangle-exclamation";
+            colorClass = "text-danger";
+            batText = "0V";
           } else {
-            let pct = persenBaterai(volt);   // M13: kurva piecewise, bukan linier penuh
-            if (pct > 100) pct = 100; // Maksimal 100%
-            if (pct < 0) pct = 0;     // Minimal 0%
+            let pct = persenBaterai(volt);
+            if (pct > 100) pct = 100;
+            if (pct < 0) pct = 0;
             
-            if (pct <= 20) { batIcon = "fa-battery-empty"; bgClass = "bg-danger"; }
-            else if (pct <= 40) { batIcon = "fa-battery-quarter"; bgClass = "bg-warning text-dark"; }
-            else if (pct <= 70) { batIcon = "fa-battery-half"; bgClass = "bg-info"; }
-            else if (pct <= 90) { batIcon = "fa-battery-three-quarters"; bgClass = "bg-primary"; }
+            if (pct <= 20) { batIcon = "fa-battery-empty"; colorClass = "text-danger"; }
+            else if (pct <= 40) { batIcon = "fa-battery-quarter"; colorClass = "text-warning"; }
+            else if (pct <= 70) { batIcon = "fa-battery-half"; colorClass = "text-info"; }
+            else if (pct <= 90) { batIcon = "fa-battery-three-quarters"; colorClass = "text-info"; }
             
             batText = `${pct.toFixed(0)}% (${volt.toFixed(2)}V)`;
           }
 
-          // M13: banner kritis — C2 (status_daya dari firmware) atau persentase rendah
           const statusDaya = data.status_daya;
           const kritis = (statusDaya === "kritis") || (volt > 0.5 && persenBaterai(volt) <= 20);
           if (kritis) {
             banner.classList.remove("d-none");
-            bannerDetail.innerText = `Tegangan ${volt.toFixed(2)} V. Segera isi daya — perangkat bisa mati kapan saja (C2).`;
+            bannerDetail.innerText = `Tegangan ${volt.toFixed(2)} V. Segera isi daya — perangkat berpotensi mati dalam siklus sleep (C2).`;
           } else {
             banner.classList.add("d-none");
           }
 
-          const batBadge = document.getElementById("batteryBadge");
-          batBadge.style.display = "inline-block"; // Tampilkan badge
-          batBadge.className = `badge ${bgClass} p-2 ms-1`;
-          batBadge.innerHTML = `<i class="fas ${batIcon} me-1"></i>${batText}`;
+          const statusBattery = document.getElementById("statusBattery");
+          if (statusBattery) {
+            statusBattery.innerHTML = `<i class="fas ${batIcon} ${colorClass} opacity-90 me-1" aria-hidden="true"></i> <span class="text-light">${batText}</span>`;
+          }
         }
 
         document.getElementById("lastUpdate").innerText = waktuString;
@@ -816,16 +1290,15 @@
         if (data.kelembapan !== undefined) gaugeHum.set(data.kelembapan);
       }
 
-      // A. MODE LIVE (Pendengar Realtime)
+      // A. MODE LIVE
       function startLiveMode() {
-        if (unsubscribeLive) unsubscribeLive(); // Hentikan listener lama jika ada
+        if (unsubscribeLive) unsubscribeLive();
         isLiveMode = true;
-        liveDataArray = []; // Bersihkan array live data
+        liveDataArray = [];
         document.getElementById("viewModeLabel").innerText = "Live";
-        document.getElementById("viewModeLabel").className = "badge bg-primary ms-1";
-        document.getElementById("paginationNav").classList.add("d-none"); // Sembunyikan paginasi
+        document.getElementById("viewModeLabel").className = "badge bg-primary-subtle text-primary border border-primary-subtle";
+        document.getElementById("paginationNav").classList.add("d-none");
 
-        // Bersihkan Chart dan Tabel
         myChart.data.labels = [];
         myChart.data.datasets[0].data = [];
         myChart.data.datasets[1].data = [];
@@ -833,14 +1306,12 @@
         myChart.update();
         document.getElementById("tableBody").innerHTML = "";
 
-        // Pasang pendengar baru
         unsubscribeLive = onChildAdded(historyRef, (snapshot) => {
           const data = snapshot.val();
           updateCardsUI(data);
           
           let waktuString = data.timestamp ? formatWaktu(new Date(data.timestamp)) : formatWaktu(new Date());
 
-          // Update Chart Realtime
           if (myChart.data.labels.length >= 30) {
             myChart.data.labels.shift();
             myChart.data.datasets[0].data.shift();
@@ -852,12 +1323,9 @@
           myChart.data.datasets[1].data.push(data.kelembapan !== undefined ? data.kelembapan : null);
           myChart.data.datasets[2].data.push(data.tegangan_vcc !== undefined ? data.tegangan_vcc : null);
 
-          // m12: onChildAdded fires beruntun (backfill 30 record saat load) — debounce 100 ms,
-          // jangan animasi chart 30×. Satu update() setelah semuanya masuk.
           if (chartTimerDebounce) clearTimeout(chartTimerDebounce);
           chartTimerDebounce = setTimeout(() => myChart.update(), 100);
 
-          // Update Tabel Realtime dengan Sorting Internal
           liveDataArray.unshift(data);
           if (liveDataArray.length > 30) liveDataArray.pop();
           renderTableRows(getSortedData(liveDataArray));
@@ -873,15 +1341,13 @@
         const pageDataTabel = dataToProcess.slice(startIndex, endIndex);
 
         if (currentPage === 1 && filteredDataArray.length > 0) {
-          updateCardsUI(filteredDataArray[0]); // Update Gauge dengan waktu aktual terbaru (kronologis)
+          updateCardsUI(filteredDataArray[0]);
         }
 
-        // Render Tabel yang sudah di-Sort nilainya
         renderTableRows(pageDataTabel);
 
-        // Update Chart (Chart selalu mengambil data kronologis, JANGAN di-sort nilainya!)
         const chartPageData = filteredDataArray.slice(startIndex, endIndex);
-        const chartData = [...chartPageData].reverse(); // Terlama -> Terbaru
+        const chartData = [...chartPageData].reverse();
         const chartLabels = [], chartSuhu = [], chartHum = [], chartBat = [];
         chartData.forEach(data => {
            chartLabels.push(data.timestamp ? formatWaktu(new Date(data.timestamp)) : "-");
@@ -913,13 +1379,12 @@
         let startP = Math.max(1, currentPage - 2);
         let endP = Math.min(totalPages, currentPage + 2);
 
-        paginationUl.insertAdjacentHTML("beforeend", `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage - 1}">«</a></li>`);
+        paginationUl.insertAdjacentHTML("beforeend", `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage - 1}" aria-label="Halaman Sebelumnya">«</a></li>`);
         for (let i = startP; i <= endP; i++) {
-          paginationUl.insertAdjacentHTML("beforeend", `<li class="page-item ${currentPage === i ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
+          paginationUl.insertAdjacentHTML("beforeend", `<li class="page-item ${currentPage === i ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}" aria-label="Halaman ${i}" ${currentPage === i ? 'aria-current="page"' : ''}>${i}</a></li>`);
         }
-        paginationUl.insertAdjacentHTML("beforeend", `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage + 1}">»</a></li>`);
+        paginationUl.insertAdjacentHTML("beforeend", `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage + 1}" aria-label="Halaman Berikutnya">»</a></li>`);
 
-        // Event listener klik paginasi
         paginationUl.querySelectorAll(".page-link").forEach(link => {
           link.addEventListener("click", function(e) {
             e.preventDefault();
@@ -932,19 +1397,31 @@
         });
       }
 
-      // Jalankan Mode Live secara default saat Web pertama kali dimuat
       startLiveMode();
 
-      // --- 5. FITUR FILTER DATA POPUP (BARU) ---
+      // --- 5. FILTER DATA POPUP ---
       const filterModalEl = document.getElementById("filterModal");
       const filterModal = new bootstrap.Modal(filterModalEl);
+      const filterFeedbackEl = document.getElementById("filterFeedback");
       
+      const showFilterFeedback = (msg, isError = true) => {
+        filterFeedbackEl.className = `modal-feedback alert ${isError ? 'alert-danger' : 'alert-success'} show`;
+        filterFeedbackEl.innerHTML = `<i class="fas ${isError ? 'fa-circle-exclamation' : 'fa-check'} me-1"></i> ${msg}`;
+      };
+
+      const clearFilterFeedback = () => {
+        filterFeedbackEl.className = "modal-feedback alert alert-warning";
+        filterFeedbackEl.innerHTML = "";
+      };
+
       document.getElementById("btnFilter").addEventListener("click", () => {
+        clearFilterFeedback();
         filterModal.show();
       });
 
       document.getElementsByName("filterOption").forEach(radio => {
         radio.addEventListener("change", function() {
+          clearFilterFeedback();
           document.getElementById("filterLastDataInputGroup").classList.toggle("d-none", this.value !== "last");
           document.getElementById("filterDateInputGroup").classList.toggle("d-none", this.value !== "date");
         });
@@ -953,6 +1430,8 @@
       document.getElementById("btnConfirmFilter").addEventListener("click", async function () {
         const btn = document.getElementById("btnConfirmFilter");
         const originalText = btn.innerHTML;
+        clearFilterFeedback();
+        
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Menarik Data...';
         btn.disabled = true;
 
@@ -974,7 +1453,7 @@
           const startVal = document.getElementById("filterStartDate").value;
           const endVal = document.getElementById("filterEndDate").value;
           if (!startVal || !endVal) {
-            alert("Harap pilih tanggal mulai dan tanggal akhir!");
+            showFilterFeedback("Harap pilih tanggal mulai dan tanggal akhir.");
             btn.innerHTML = originalText; btn.disabled = false; return;
           }
           const startTime = new Date(startVal + "T00:00:00").getTime();
@@ -985,64 +1464,75 @@
         try {
           const snapshot = await get(filterQuery);
           if (!snapshot.exists()) {
-            alert("Tidak ada data pada rentang waktu tersebut!");
+            showFilterFeedback("Tidak ada data pada rentang waktu tersebut.");
             btn.innerHTML = originalText; btn.disabled = false; return;
           }
 
           if (unsubscribeLive) {
-            unsubscribeLive(); // Hentikan penambahan data realtime saat melihat history
+            unsubscribeLive();
             unsubscribeLive = null;
           }
           isLiveMode = false;
-          document.getElementById("viewModeLabel").innerText = "Mode Filter (History)";
-          document.getElementById("viewModeLabel").className = "badge bg-warning text-dark ms-1";
+          document.getElementById("viewModeLabel").innerText = "Filter (History)";
+          document.getElementById("viewModeLabel").className = "badge bg-warning-subtle text-warning border border-warning-subtle";
 
           let tempData = [];
           snapshot.forEach((childSnapshot) => { tempData.push(childSnapshot.val()); });
           
-          filteredDataArray = tempData.reverse(); // Dibalik agar data terbaru ada di halaman pertama
+          filteredDataArray = tempData.reverse();
           currentPage = 1;
           renderFilteredView();
           filterModal.hide();
         } catch (error) {
-          alert("Terjadi kesalahan saat memfilter data.");
+          showFilterFeedback("Terjadi kesalahan saat memfilter data: " + error.message);
         } finally {
           btn.innerHTML = originalText;
           btn.disabled = false;
         }
       });
 
-      // --- 6. FITUR EXPORT CSV (DENGAN MODAL POPUP) ---
+      // --- 6. EXPORT CSV POPUP ---
       const exportModalEl = document.getElementById("exportModal");
       const exportModal = new bootstrap.Modal(exportModalEl);
+      const exportFeedbackEl = document.getElementById("exportFeedback");
+
+      const showExportFeedback = (msg, isError = true) => {
+        exportFeedbackEl.className = `modal-feedback alert ${isError ? 'alert-danger' : 'alert-success'} show`;
+        exportFeedbackEl.innerHTML = `<i class="fas ${isError ? 'fa-circle-exclamation' : 'fa-check'} me-1"></i> ${msg}`;
+      };
+
+      const clearExportFeedback = () => {
+        exportFeedbackEl.className = "modal-feedback alert alert-warning";
+        exportFeedbackEl.innerHTML = "";
+      };
       
-      // 5.1 Buka modal saat tombol utama diklik
       document.getElementById("btnExport").addEventListener("click", () => {
+        clearExportFeedback();
         exportModal.show();
       });
 
-      // 5.2 Logika Tampil/Sembunyikan input form sesuai pilihan radio button
       const radios = document.getElementsByName("exportOption");
       const lastDataGroup = document.getElementById("lastDataInputGroup");
       const dateGroup = document.getElementById("dateInputGroup");
 
       radios.forEach(radio => {
         radio.addEventListener("change", function() {
+          clearExportFeedback();
           lastDataGroup.classList.toggle("d-none", this.value !== "last");
           dateGroup.classList.toggle("d-none", this.value !== "date");
         });
       });
 
-      // 5.3 Tombol Konfirmasi Unduh di dalam Modal
       document.getElementById("btnConfirmExport").addEventListener("click", async function () {
         const btn = document.getElementById("btnConfirmExport");
         const originalText = btn.innerHTML;
+        clearExportFeedback();
         
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Memproses...';
         btn.disabled = true;
 
         const option = document.querySelector('input[name="exportOption"]:checked').value;
-        let exportQuery = dbRef; // Default ambil semua
+        let exportQuery = dbRef;
 
         if (option === "last") {
           const count = parseInt(document.getElementById("lastDataCount").value) || 100;
@@ -1052,16 +1542,14 @@
           const endVal = document.getElementById("endDate").value;
           
           if (!startVal || !endVal) {
-            alert("Harap pilih tanggal mulai dan tanggal akhir!");
+            showExportFeedback("Harap pilih tanggal mulai dan tanggal akhir.");
             btn.innerHTML = originalText;
             btn.disabled = false;
             return;
           }
           
-          // Konversi tanggal ke milidetik (epoch timestamp) agar cocok dengan Firebase
           const startTime = new Date(startVal + "T00:00:00").getTime();
           const endTime = new Date(endVal + "T23:59:59").getTime();
-          
           exportQuery = query(dbRef, orderByChild("timestamp"), startAt(startTime), endAt(endTime));
         }
 
@@ -1069,7 +1557,7 @@
           const snapshot = await get(exportQuery);
           
           if (!snapshot.exists()) {
-            alert("Tidak ada data pada rentang waktu/pilihan tersebut!");
+            showExportFeedback("Tidak ada data pada rentang waktu/pilihan tersebut.");
             return;
           }
 
@@ -1088,7 +1576,6 @@
             csv += `"${waktuString}",${suhu},${hum},${press},${bat},"${koneksi}"\n`;
           });
 
-          // m11: BOM UTF-8 (Excel), nama file bertanggal, revoke URL
           const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement("a");
@@ -1097,18 +1584,17 @@
           a.click();
           window.URL.revokeObjectURL(url);
           
-          exportModal.hide(); // Tutup modal setelah sukses
+          exportModal.hide();
         } catch (error) {
           console.error("Gagal export:", error);
-          alert("Terjadi kesalahan sistem/Firebase saat mengunduh data.");
+          showExportFeedback("Terjadi kesalahan saat mengunduh data: " + error.message);
         } finally {
           btn.innerHTML = originalText;
           btn.disabled = false;
         }
       });
 
-      // --- 6. INISIALISASI BOOTSTRAP TOOLTIP ---
-      // m8: isi title dari AMBANG — title statis di markup sudah dipindah ke sini
+      // --- 7. INITIALIZE TOOLTIPS & KEYBOARD ACCESSIBILITY ---
       const tooltipSuhuEl = document.getElementById("tooltipSuhu");
       if (tooltipSuhuEl) tooltipSuhuEl.setAttribute("title", teksTooltipSuhu());
       const tooltipHumEl = document.getElementById("tooltipHum");
@@ -1117,39 +1603,44 @@
       const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
       const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
-      // --- 7. LOGIKA LAZY LOADING UNTUK MODAL AI ---
+      // Keyboard activation for info tooltips
+      [tooltipSuhuEl, tooltipHumEl].forEach(el => {
+        if (!el) return;
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            const inst = bootstrap.Tooltip.getInstance(el);
+            if (inst) inst.toggle();
+          }
+        });
+      });
+
+      // --- 8. LAZY LOADING UNTUK MODAL AI ---
       let aiDataCached = null; 
 
       document.getElementById("aiModal").addEventListener("show.bs.modal", async () => {
         const contentDiv = document.getElementById("aiContent");
         const timeDiv = document.getElementById("aiTimestamp");
 
-        // Cegah fetch berulang jika data sudah ada di memori browser (Session Caching)
         if (aiDataCached) return; 
 
         try {
           const aiRef = ref(db, "LAPORAN_AI");
-          const snapshot = await get(aiRef); // Gunakan 'get' (sekali tarik), BUKAN onValue
+          const snapshot = await get(aiRef);
           
           if (snapshot.exists()) {
             const data = snapshot.val();
             aiDataCached = data; 
-            
-            // marked.parse menyulap tulisan AI (Markdown) menjadi HTML yang rapi.
-            // M14: marked TIDAK menyanitasi — DOMPurify wajib; kalau tidak, payload
-            // di /LAPORAN_AI (mis. <img src=x onerror=...>) dieksekusi di dashboard.
             contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(data.laporan_text));
-            
             const dt = new Date(data.timestamp);
             timeDiv.innerText = `Terakhir diperbarui: ${formatWaktu(dt)}`;
           } else {
-            contentDiv.innerHTML = `<div class="alert alert-warning">Belum ada laporan AI yang tersedia. Skrip Python mungkin belum dijalankan.</div>`;
+            contentDiv.innerHTML = `<div class="alert alert-warning" role="alert">Belum ada laporan AI yang tersedia. Skrip Python mungkin belum dijalankan.</div>`;
           }
         } catch (error) {
-          contentDiv.innerHTML = `<div class="alert alert-danger">Gagal memuat data AI: ${error.message}</div>`;
+          contentDiv.innerHTML = `<div class="alert alert-danger" role="alert">Gagal memuat data AI: ${escapeHtml(error.message)}</div>`;
         }
       });
-
     </script>
   </body>
 </html>
