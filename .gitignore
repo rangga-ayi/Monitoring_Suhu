@@ -24,6 +24,7 @@ __pycache__/
 !/maintenance_db_contoh.py
 !/firebase_adminsdk_contoh.json
 !/Wemos_BMP280_ATH20_Firebase/
+!/Assets/
 
 # Rahasia Firmware & Skrip Nyata (JANGAN DI-COMMIT)
 secrets.h
