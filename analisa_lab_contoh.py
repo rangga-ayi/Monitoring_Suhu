@@ -75,6 +75,8 @@ df = df[df["timestamp"] >= batas_ms]
 
 for kolom, (lo, hi) in RENTANG_WAJAR.items():
     df.loc[~df[kolom].between(lo, hi), kolom] = pd.NA
+# Eliminasi bacaan sensor glitch (0.0, -50, atau suhu kamar tropis tidak realistis)
+df.loc[(df["suhu"] <= 10) | (df["suhu"] == -50), "suhu"] = pd.NA
 df.loc[df["tegangan_vcc"] < BATAS_BAWAH_VCC, "tegangan_vcc"] = pd.NA
 
 if df.empty:
@@ -130,8 +132,8 @@ JUMLAH_RECORD = len(df)
 # ==========================================
 print(f"[3/4] Mengambil metrik meteorologi dan lingkungan untuk {KOTA_LAB}...")
 cuaca_luar = {
-    "suhu": 0, "kelembapan": 0, "feels_like": 0, 
-    "wind_speed": 0, "wind_deg": 0, "clouds": 0, "pressure": 0
+    "suhu": None, "kelembapan": None, "feels_like": None, 
+    "wind_speed": None, "wind_deg": None, "clouds": None, "pressure": None
 }
 matahari = {"sunrise": "-", "sunset": "-", "day_length": "-"}
 aqi_luar = {"aqi": "-", "dominentpol": "-", "keterangan": "Data WAQI tidak diaktifkan"}
@@ -200,11 +202,11 @@ Parameter Ruangan:
 - Kelembapan Kamar Saat Ini: {fmt(hum_terbaru, '%')}
 - Tekanan Udara Kamar Saat Ini: {fmt(tekanan_terbaru, 'hPa')} (Perubahan 3 jam terakhir: {fmt(tren_tekanan, 'hPa', 2)} -> Tren {status_tren})
 Kondisi Eksternal {KOTA_LAB} Terkini:
-- Suhu Eksternal (Luar): {cuaca_luar['suhu']:.1f} °C (Feels like: {cuaca_luar['feels_like']:.1f} °C)
-- Kelembapan Eksternal (Luar): {cuaca_luar['kelembapan']:.1f} %
-- Tekanan Eksternal (Luar): {cuaca_luar['pressure']:.1f} hPa
-- Angin Luar: Kecepatan {cuaca_luar['wind_speed']} m/s, Arah {cuaca_luar['wind_deg']}°
-- Tutupan Awan: {cuaca_luar['clouds']} %
+- Suhu Eksternal (Luar): {fmt(cuaca_luar['suhu'], '°C')} (Feels like: {fmt(cuaca_luar['feels_like'], '°C')})
+- Kelembapan Eksternal (Luar): {fmt(cuaca_luar['kelembapan'], '%')}
+- Tekanan Eksternal (Luar): {fmt(cuaca_luar['pressure'], 'hPa')}
+- Angin Luar: Kecepatan {fmt(cuaca_luar['wind_speed'], 'm/s')}, Arah {fmt(cuaca_luar['wind_deg'], '°', 0)}
+- Tutupan Awan: {fmt(cuaca_luar['clouds'], '%', 0)}
 - Siklus Sinar Matahari: Terbit {matahari['sunrise']}, Terbenam {matahari['sunset']} (Total siang: {matahari['day_length']})
 - Kualitas Udara Luar (AQI): {aqi_luar['aqi']} ({aqi_luar['keterangan']}) - Polutan utama: {aqi_luar['dominentpol']}
 
@@ -219,6 +221,18 @@ Berikan laporan teknis yang terstruktur, objektif, dan berbasis metrik:
 1. Analisis Termal dan Risiko Lingkungan
 2. Tinjauan Meteorologi Mikro dan Kualitas Udara
 3. Diagnostik Kinerja Perangkat Keras dan Manajemen Daya (Jika tegangan 0.00 V terbitkan indikasi kegagalan ADC/divider)
+
+FORMAT KELUARAN:
+- Judul Laporan: Langsung mulai dengan `# Evaluasi Iklim Mikro & Telemetri IoT` (DILARANG menggunakan pembuka memo seperti "Kepada:", "Perihal:").
+- Ringkasan Eksekutif (Wajib di awal): Tepat setelah judul utama, buat kotak rangkuman cepat menggunakan format blockquote berikut:
+  > ### Ringkasan Eksekutif (Status Cepat)
+  > - **Status Termal**: [AMAN / WASPADA / KRITIS] — [Rangkuman 1 kalimat kondisi termal kamar vs luar]
+  > - **Sirkulasi & Kualitas Udara**: [VENTILASI AMAN / TUTUP VENTILASI] — [Rangkuman 1 kalimat tentang AQI & angin]
+  > - **Kesehatan Perangkat IoT**: [NORMAL / ANOMALI] — [Rangkuman 1 kalimat tentang sensor dan daya baterai]
+- Gunakan sub-heading Markdown level 3 (`###`) untuk setiap sub-bagian.
+- Khusus untuk bagian Rekomendasi Mitigasi, gunakan format blockquote (`> - Rekomendasi...`).
+- ATURAN ERGONOMI BACA (ANTI-BOLD FATIGUE): Gunakan teks tebal (**bold**) SECARA SANGAT SELEKTIF dan HEMAT. HANYA tebalkan label status atau putusan utama (misal: **NORMAL**, **WASPADA**, **ANOMALI**). DILARANG menebalkan setiap angka metrik, satuan, atau variabel biasa di dalam kalimat (tulis biasa: 'suhu 30.5 °C', 'kelembapan 82%', 'tegangan 0.00 V', BUKAN ditebalkan). Kalimat harus mengalir halus dan tidak melelahkan mata.
+- DILARANG menggunakan notasi LaTeX atau tanda dollar ($...$, \\geq, \\downarrow, \\Delta). Gunakan karakter Unicode standar langsung (contoh: ≥, ↓, ΔV, %).
 """
 
 print("[4/4] Mengirim data ke Ollama (Sistem Fallback AI aktif)...")

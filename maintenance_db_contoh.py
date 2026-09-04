@@ -65,7 +65,7 @@ for key, val in all_data.items():
         if sensor in val:
             try:
                 v = float(val[sensor])
-                if v < min_val or v > max_val:
+                if v < min_val or v > max_val or (sensor == "suhu" and (v <= 10 or v == -50)):
                     is_error = True
                     break
             except (ValueError, TypeError):
