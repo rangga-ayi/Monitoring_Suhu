@@ -428,40 +428,105 @@
         display: block;
       }
 
-      /* AI Markdown Typography Inside Modal */
+      /* AI Markdown Typography Inside Modal (Ergonomic & Anti-Halation) */
       #aiContent {
-        line-height: 1.68;
+        max-width: 68ch;
+        margin: 0 auto;
+        line-height: 1.78;
         font-size: 0.94rem;
         color: #cbd5e1;
+        letter-spacing: 0.01em;
       }
       #aiContent h1, #aiContent h2, #aiContent h3, #aiContent h4 {
-        color: #f8fafc;
-        margin-top: 1.25rem;
-        margin-bottom: 0.75rem;
-        font-weight: 700;
+        margin-top: 1.4rem;
+        margin-bottom: 0.6rem;
       }
-      #aiContent h2 { font-size: 1.25rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.35rem; }
-      #aiContent h3 { font-size: 1.1rem; }
-      #aiContent blockquote {
-        border-left: 3px solid var(--accent-cyan);
-        padding-left: 1rem;
-        margin: 1rem 0;
-        color: #94a3b8;
-        background: rgba(6, 182, 212, 0.05);
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-        border-radius: 0 8px 8px 0;
+      #aiContent h1 { 
+        font-size: 1.25rem; 
+        border-bottom: 1px solid var(--border-subtle); 
+        padding-bottom: 0.45rem; 
+        color: #38bdf8; 
+        font-weight: 700; 
+        margin-top: 0.4rem;
+      }
+      #aiContent h2 { 
+        font-size: 1.15rem; 
+        border-bottom: 1px solid var(--border-subtle); 
+        padding-bottom: 0.35rem; 
+        color: #f1f5f9; 
+        font-weight: 600; 
+      }
+      #aiContent h3 { 
+        font-size: 1.02rem; 
+        color: #38bdf8; 
+        font-weight: 600; 
+        margin-top: 1.35rem; 
+      }
+      #aiContent h4 { 
+        font-size: 0.92rem; 
+        color: #94a3b8; 
+        font-weight: 600; 
+      }
+      #aiContent p {
+        margin-bottom: 0.95rem;
+      }
+      #aiContent strong, #aiContent b {
+        color: #f1f5f9;
+        font-weight: 600;
       }
       #aiContent ul, #aiContent ol {
         padding-left: 1.4rem;
+        margin-bottom: 1.1rem;
+      }
+      #aiContent li {
+        margin-bottom: 0.45rem;
+        line-height: 1.72;
+      }
+      #aiContent blockquote {
+        border-left: 3px solid #38bdf8;
+        padding: 0.85rem 1.15rem;
+        margin: 1.25rem 0;
+        color: #e2e8f0;
+        background: rgba(56, 189, 248, 0.06);
+        border-radius: 0 10px 10px 0;
+      }
+      #aiContent blockquote > *:last-child {
+        margin-bottom: 0;
+      }
+      #aiContent blockquote h3 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        color: #38bdf8;
+        font-size: 0.98rem;
       }
       #aiContent code {
         font-family: var(--font-mono);
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(56, 189, 248, 0.1);
         padding: 0.15rem 0.35rem;
         border-radius: 4px;
-        color: #38bdf8;
+        color: #7dd3fc;
         font-size: 0.88em;
+      }
+      #aiContent table {
+        width: 100%;
+        margin: 1.25rem 0;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      #aiContent th,
+      #aiContent td {
+        padding: 0.6rem 0.85rem;
+        border: 1px solid var(--border-subtle);
+        text-align: left;
+        vertical-align: top;
+      }
+      #aiContent th {
+        background: rgba(255, 255, 255, 0.06);
+        color: #f1f5f9;
+        font-weight: 600;
+      }
+      #aiContent tbody tr:hover {
+        background: rgba(255, 255, 255, 0.03);
       }
 
       /* Alert styling */
@@ -1011,6 +1076,18 @@
       const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g,
         (c) => "&#" + c.charCodeAt(0) + ";");
 
+      // Safe numeric parser & formatter: tahan null, undefined, string kotor, NaN
+      const parseAngka = (val) => {
+        if (val === null || val === undefined || val === "") return null;
+        const num = Number(val);
+        return isNaN(num) ? null : num;
+      };
+
+      const formatAngka = (val, decimals = 1, fallback = "-") => {
+        const num = parseAngka(val);
+        return num !== null ? num.toFixed(decimals) : fallback;
+      };
+
       // --- LOGIKA STATUS ONLINE/OFFLINE ---
       let lastDataTimestamp = 0;
       let lastSSID = "";
@@ -1101,8 +1178,8 @@
             valA = valA || 0;
             valB = valB || 0;
           } else if (['suhu', 'kelembapan', 'tekanan', 'tegangan_vcc'].includes(currentSortCol)) {
-            valA = valA !== undefined ? parseFloat(valA) : -Infinity;
-            valB = valB !== undefined ? parseFloat(valB) : -Infinity;
+            valA = parseAngka(valA) ?? -Infinity;
+            valB = parseAngka(valB) ?? -Infinity;
           } else {
             valA = (valA || "").toString().toLowerCase();
             valB = (valB || "").toString().toLowerCase();
@@ -1119,13 +1196,22 @@
         tbody.innerHTML = "";
         dataArray.forEach(data => {
           let waktuString = data.timestamp ? formatWaktu(new Date(data.timestamp)) : "-";
+          const sNum = parseAngka(data.suhu);
+          const hNum = parseAngka(data.kelembapan);
+          const pNum = parseAngka(data.tekanan);
+          const vNum = parseAngka(data.tegangan_vcc);
+
+          const sColor = sNum === null ? 'text-secondary' : (sNum > 33 ? 'text-danger' : (sNum < 24 ? 'text-info' : 'text-success'));
+          const hColor = hNum === null ? 'text-secondary' : (hNum > 80 ? 'text-danger' : (hNum < 40 ? 'text-warning' : 'text-info'));
+          const vClass = (vNum !== null && vNum <= 3.6) ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle';
+
           const row = `
               <tr>
                   <td class="text-secondary small">${waktuString}</td>
-                  <td class="fw-semibold ${data.suhu > 33 ? 'text-danger' : (data.suhu < 24 ? 'text-info' : 'text-success')}">${data.suhu !== undefined ? data.suhu.toFixed(1) + '°C' : '-'}</td>
-                  <td class="fw-semibold ${data.kelembapan > 80 ? 'text-danger' : (data.kelembapan < 40 ? 'text-warning' : 'text-info')}">${data.kelembapan !== undefined ? data.kelembapan.toFixed(1) + '%' : '-'}</td>
-                  <td class="fw-semibold text-light">${data.tekanan !== undefined ? data.tekanan.toFixed(1) + ' hPa' : "-"}</td>
-                  <td><span class="badge ${data.tegangan_vcc <= 3.6 ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'}">${data.tegangan_vcc !== undefined ? data.tegangan_vcc.toFixed(2) + 'V' : '-'}</span></td>
+                  <td class="fw-semibold ${sColor}">${sNum !== null ? sNum.toFixed(1) + '°C' : '-'}</td>
+                  <td class="fw-semibold ${hColor}">${hNum !== null ? hNum.toFixed(1) + '%' : '-'}</td>
+                  <td class="fw-semibold text-light">${pNum !== null ? pNum.toFixed(1) + ' hPa' : "-"}</td>
+                  <td><span class="badge ${vClass}">${vNum !== null ? vNum.toFixed(2) + 'V' : '-'}</span></td>
                   <td><span class="badge bg-dark border border-secondary text-secondary">${escapeHtml(data.koneksi) || "?"}</span></td>
               </tr>
           `;
@@ -1159,12 +1245,16 @@
           updateConnectionStatus();
         }
 
-        document.getElementById("valSuhu").innerText = data.suhu !== undefined ? data.suhu.toFixed(1) : "--";
-        document.getElementById("valHum").innerText = data.kelembapan !== undefined ? data.kelembapan.toFixed(1) : "--";
-        document.getElementById("valPress").innerText = data.tekanan !== undefined ? data.tekanan.toFixed(1) : "-";
+        const tVal = parseAngka(data.suhu);
+        const hVal = parseAngka(data.kelembapan);
+        const pVal = parseAngka(data.tekanan);
+        const volt = parseAngka(data.tegangan_vcc);
 
-        if (data.suhu !== undefined) {
-          const tVal = data.suhu;
+        document.getElementById("valSuhu").innerText = tVal !== null ? tVal.toFixed(1) : "--";
+        document.getElementById("valHum").innerText = hVal !== null ? hVal.toFixed(1) : "--";
+        document.getElementById("valPress").innerText = pVal !== null ? pVal.toFixed(1) : "-";
+
+        if (tVal !== null) {
           let cHex = "#fb7185"; 
           let cRgba = "rgba(251, 113, 133, 0.4)";
           let statusText = "";
@@ -1186,8 +1276,7 @@
           elStatusSuhu.style.borderColor = cRgba.replace('0.4', '0.35');
         }
 
-        if (data.kelembapan !== undefined) {
-          const hVal = data.kelembapan;
+        if (hVal !== null) {
           let cHex = "#38bdf8";
           let cRgba = "rgba(56, 189, 248, 0.4)";
           let statusText = "";
@@ -1209,8 +1298,7 @@
           elStatusHum.style.borderColor = cRgba.replace('0.4', '0.35');
         }
 
-        if (data.tekanan !== undefined) {
-          const pVal = data.tekanan;
+        if (pVal !== null) {
           let cHex = "#34d399";
           let cRgba = "rgba(52, 211, 153, 0.4)";
           let statusText = "";
@@ -1245,8 +1333,7 @@
           if (elIconPress) { elIconPress.className = iconClass; }
         }
 
-        if (data.tegangan_vcc !== undefined) {
-          let volt = data.tegangan_vcc;
+        if (volt !== null) {
           let batIcon = "fa-battery-full";
           let colorClass = "text-success";
           let batText = "";
@@ -1286,8 +1373,8 @@
         }
 
         document.getElementById("lastUpdate").innerText = waktuString;
-        if (data.suhu !== undefined) gaugeSuhu.set(data.suhu);
-        if (data.kelembapan !== undefined) gaugeHum.set(data.kelembapan);
+        if (tVal !== null) gaugeSuhu.set(tVal);
+        if (hVal !== null) gaugeHum.set(hVal);
       }
 
       // A. MODE LIVE
@@ -1319,9 +1406,9 @@
             myChart.data.datasets[2].data.shift();
           }
           myChart.data.labels.push(waktuString);
-          myChart.data.datasets[0].data.push(data.suhu !== undefined ? data.suhu : null);
-          myChart.data.datasets[1].data.push(data.kelembapan !== undefined ? data.kelembapan : null);
-          myChart.data.datasets[2].data.push(data.tegangan_vcc !== undefined ? data.tegangan_vcc : null);
+          myChart.data.datasets[0].data.push(parseAngka(data.suhu));
+          myChart.data.datasets[1].data.push(parseAngka(data.kelembapan));
+          myChart.data.datasets[2].data.push(parseAngka(data.tegangan_vcc));
 
           if (chartTimerDebounce) clearTimeout(chartTimerDebounce);
           chartTimerDebounce = setTimeout(() => myChart.update(), 100);
@@ -1351,9 +1438,9 @@
         const chartLabels = [], chartSuhu = [], chartHum = [], chartBat = [];
         chartData.forEach(data => {
            chartLabels.push(data.timestamp ? formatWaktu(new Date(data.timestamp)) : "-");
-           chartSuhu.push(data.suhu !== undefined ? data.suhu : null);
-           chartHum.push(data.kelembapan !== undefined ? data.kelembapan : null);
-           chartBat.push(data.tegangan_vcc !== undefined ? data.tegangan_vcc : null);
+           chartSuhu.push(parseAngka(data.suhu));
+           chartHum.push(parseAngka(data.kelembapan));
+           chartBat.push(parseAngka(data.tegangan_vcc));
         });
         myChart.data.labels = chartLabels;
         myChart.data.datasets[0].data = chartSuhu;
@@ -1567,10 +1654,10 @@
             const data = childSnapshot.val();
             let waktuString = data.timestamp ? new Date(data.timestamp).toLocaleString("id-ID") : "-";
             
-            const suhu = data.suhu !== undefined ? data.suhu.toFixed(1) : "-";
-            const hum = data.kelembapan !== undefined ? data.kelembapan.toFixed(1) : "-";
-            const press = data.tekanan !== undefined ? data.tekanan.toFixed(1) : "-";
-            const bat = data.tegangan_vcc !== undefined ? data.tegangan_vcc.toFixed(2) : "-";
+            const suhu = formatAngka(data.suhu, 1, "-");
+            const hum = formatAngka(data.kelembapan, 1, "-");
+            const press = formatAngka(data.tekanan, 1, "-");
+            const bat = formatAngka(data.tegangan_vcc, 2, "-");
             const koneksi = data.koneksi || "-";
 
             csv += `"${waktuString}",${suhu},${hum},${press},${bat},"${koneksi}"\n`;
@@ -1617,6 +1704,29 @@
 
       // --- 8. LAZY LOADING UNTUK MODAL AI ---
       let aiDataCached = null; 
+      marked.use({ breaks: true, gfm: true }); 
+
+      function bersihkanLatex(raw) {
+        if (!raw) return "";
+        return raw
+          .replace(/\\geq/g, "≥")
+          .replace(/\\leq/g, "≤")
+          .replace(/\\downarrow/g, "↓")
+          .replace(/\\uparrow/g, "↑")
+          .replace(/\\rightarrow/g, "→")
+          .replace(/\\Delta/g, "Δ")
+          .replace(/\\mu/g, "µ")
+          .replace(/\\pm/g, "±")
+          .replace(/\\times/g, "×")
+          .replace(/\\approx/g, "≈")
+          .replace(/\\neq/g, "≠")
+          .replace(/\\sim/g, "~")
+          .replace(/\\%/g, "%")
+          .replace(/\\text\{([^}]+)\}/g, "$1")
+          .replace(/\\mathrm\{([^}]+)\}/g, "$1")
+          .replace(/\$\$([^$]+)\$\$/g, "$1")
+          .replace(/\$([^$]+)\$/g, "$1");
+      }
 
       document.getElementById("aiModal").addEventListener("show.bs.modal", async () => {
         const contentDiv = document.getElementById("aiContent");
@@ -1631,7 +1741,8 @@
           if (snapshot.exists()) {
             const data = snapshot.val();
             aiDataCached = data; 
-            contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(data.laporan_text));
+            const teksBersih = bersihkanLatex(data.laporan_text);
+            contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(teksBersih));
             const dt = new Date(data.timestamp);
             timeDiv.innerText = `Terakhir diperbarui: ${formatWaktu(dt)}`;
           } else {
