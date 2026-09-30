@@ -54,7 +54,7 @@ Untuk memperpanjang masa pakai baterai hingga berbulan-bulan, ESP8266 beroperasi
 - **BMP280 (I2C):** Mengukur tekanan barometrik absolut dan otomatis dikonversi ke *Mean Sea Level Pressure* (MSLP) dengan formula barometrik berdasar elevasi lokasi.
 
 ### 3. Jaringan Tangguh & Komunikasi Langsung
-- **WiFi Multi-AP Auto Fallback:** Firmware otomatis beralih ke SSID cadangan apabila jaringan WiFi utama mengalami gangguan koneksi.
+- **WiFi Dinamis (Captive Portal via WiFiManager):** Konfigurasi SSID & password mudah melalui antarmuka web smartphone tanpa perlu mengubah kode atau flashing ulang.
 - **Transmisi Firebase REST Ringan:** Pengiriman JSON langsung ke Firebase RTDB menggunakan endpoint REST yang dioptimalkan untuk meminimalkan waktu aktif radio WiFi.
 
 ### 4. Web Dashboard Tanpa Backend (Serverless)
@@ -130,6 +130,7 @@ flowchart TD
 | **Pembagi Tegangan Baterai** | Kutub Positif Baterai `(+)` | Seri Resistor 100kΩ ➔ `A0` | Mengonversi skala tegangan 4.2V ke batas aman ADC 3.2V |
 | **Masukan Daya Sistem** | Baterai `(+)` via BMS | `5V` / `VCC` | Masuk ke input Low-Dropout Regulator (LDO) internal |
 | | Baterai `(-)` via BMS | `G (GND)` | Referensi ground catu daya |
+| **Setup WiFi (Jumper)** | Kabel Jumper Service | `D5 (GPIO 14)` ➔ `G (GND)` | Hubungkan ke GND untuk memicu Captive Portal web saat ingin ganti WiFi |
 
 > [!NOTE]
 > Pin `A0` Wemos D1 Mini secara internal sudah memiliki rangkaian pembagi tegangan 220kΩ : 100kΩ (maksimum 3.2V). Pemasangan resistor tambahan 100kΩ secara seri di luar pin `A0` menggeser rentang ukur hingga ~4.3V, sehingga ideal untuk membaca tegangan sel lithium saat kondisi penuh (4.2V).
@@ -204,30 +205,57 @@ Ikuti tahapan berurutan berikut untuk menjalankan keseluruhan ekosistem proyek s
    - `Adafruit AHTX0` (oleh Adafruit)
    - `Adafruit BMP280 Library` (oleh Adafruit)
    - `Firebase ESP Client` (oleh Mobizt)
+   - `WiFiManager` (oleh tzapu)
 5. Buka berkas [Wemos_BMP280_ATH20_Firebase/Wemos_BMP280_ATH20_Firebase.ino](file:///d:/PROYEK/Monitoring_Suhu/Wemos_BMP280_ATH20_Firebase/Wemos_BMP280_ATH20_Firebase.ino).
 6. Salin berkas template kredensial:
    ```bash
    cp Wemos_BMP280_ATH20_Firebase/secrets_contoh.h Wemos_BMP280_ATH20_Firebase/secrets.h
    ```
-7. Buka `Wemos_BMP280_ATH20_Firebase/secrets.h` dan isi parameter Anda:
+7. Buka `Wemos_BMP280_ATH20_Firebase/secrets.h` dan isi kredensial Firebase Anda:
    ```cpp
-   #define FIREBASE_HOST "https://<nama-proyek>-asia-southeast1.firebasedatabase.app/"
+   #define DATABASE_URL "url-proyek-anda-default-rtdb.asia-southeast1.firebasedatabase.app"
    #define FIREBASE_AUTH "DATABASE_SECRET_TOKEN_ANDA"
-
-   #define WIFI_SSID_1 "Nama_WiFi_Utama"
-   #define WIFI_PASS_1 "Password_WiFi_Utama"
-   #define WIFI_SSID_2 "Nama_WiFi_Cadangan"
-   #define WIFI_PASS_2 "Password_WiFi_Cadangan"
    ```
+   *(Kredensial WiFi tidak lagi ditulis di dalam kode, melainkan diatur langsung dari HP via Captive Portal).*
 8. **PENTING SAAT FLASHING:**
    - **Lepaskan jumper dari pin `D0` ke `RST`.** (Jika jumper masih terpasang, ESP8266 tidak dapat memasuki mode bootloader flashing).
    - Pastikan baterai dilepas dari Wemos. Hubungkan Wemos ke komputer dengan kabel data micro-USB.
    - Pada Arduino IDE, pilih board **LOLIN(WEMOS) D1 R2 & mini** dan pilih port COM yang sesuai.
    - Klik tombol **Upload**.
-9. Setelah proses upload berhasil:
-   - Cabut kabel USB.
-   - **Pasang kembali jumper kabel dari pin `D0` ke pin `RST`** agar fungsi auto wake-up deep sleep dapat bekerja.
-   - Sambungkan konektor baterai. Perangkat akan mulai membaca sensor dan mengirim data setiap 5 menit.
+9. **Pasang Kembali Jumper Deep Sleep:**
+   - Cabut kabel USB dari komputer.
+   - **Pasang kembali jumper dari pin `D0` ke `RST`** agar fitur *auto wake-up* Deep Sleep dapat bekerja.
+   - Sambungkan konektor baterai.
+
+---
+
+### Panduan Konfigurasi & Pergantian WiFi (Captive Portal)
+
+Sistem ini tidak memerlukan *flashing* ulang atau edit kode saat berpindah jaringan WiFi. Konfigurasi dilakukan langsung melalui halaman web di smartphone/laptop:
+
+#### A. Setup Pertama Kali (Setelah Flash Firmware Baru)
+Karena memori flash ESP8266 masih kosong (belum ada WiFi tersimpan), perangkat akan **otomatis** masuk ke mode konfigurasi saat dinyalakan:
+1. Sambungkan baterai untuk menyalakan perangkat.
+2. Buka menu WiFi di smartphone atau laptop Anda, cari dan sambungkan ke jaringan:
+   - **SSID Hotspot:** `MonitoringSuhu-Setup`
+   - **Password:** *(Tanpa password / Open)*
+3. Jendela login (*Captive Portal*) akan otomatis terbuka di layar. Jika tidak muncul otomatis, buka browser dan akses alamat IP:
+   ```text
+   http://192.168.4.1
+   ```
+4. Klik menu **Configure WiFi**.
+5. Pilih nama WiFi rumah/ruangan Anda dari daftar yang terdeteksi, masukkan kata sandi WiFi, lalu klik tombol **Save**.
+6. ESP8266 akan menyimpan kredensial ke memori internal, melakukan *restart*, dan langsung mulai membaca sensor serta mengirim data ke Firebase setiap 5 menit (Deep Sleep).
+
+#### B. Cara Mengganti SSID & Password di Kemudian Hari (Ganti Router / Pindah Lokasi)
+Apabila router diganti, kata sandi diubah, atau perangkat dipindahkan ke tempat lain:
+1. Siapkan 1 buah kabel jumper Dupont (Female-Female).
+2. Hubungkan pin **`D5 (GPIO 14)`** ke pin **`G (GND)`** pada board Wemos D1 Mini.
+3. Tekan tombol **RST** kecil pada papan Wemos (atau cabut-pasang baterai) untuk menyalakannya kembali.
+4. Perangkat mendeteksi pin `D5` terhubung ke GND dan langsung membuka hotspot **`MonitoringSuhu-Setup`**.
+5. Sambungkan HP ke hotspot `MonitoringSuhu-Setup` $\rightarrow$ buka `http://192.168.4.1` $\rightarrow$ pilih WiFi baru & masukkan kata sandi baru $\rightarrow$ klik **Save**.
+6. **Cabut kabel jumper dari pin `D5`**.
+7. ESP8266 mendeteksi kabel jumper telah dilepas, otomatis melakukan *restart*, dan langsung beroperasi normal pada jaringan WiFi yang baru.
 
 ---
 
