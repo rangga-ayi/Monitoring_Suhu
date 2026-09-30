@@ -1,11 +1,9 @@
 #include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
+#include <WiFiManager.h>
 #include <Wire.h>
 #include <Adafruit_AHTX0.h>
 #include <Adafruit_BMP280.h>
 #include <Firebase_ESP_Client.h>
-
-// ADC_MODE(ADC_VCC); // Dihapus karena kita akan menggunakan Pin A0 untuk baca baterai fisik
 
 // --- PERBAIKAN UTAMA: WAJIB ADA ADDONS INI ---
 // Tanpa ini, Legacy Token tidak bisa diproses oleh library
@@ -14,6 +12,14 @@
 
 // --- KREDENSIAL RAHASIA (DIAMBIL DARI secrets.h - TER-GITIGNORE) ---
 #include "secrets.h"
+
+// --- PIN I2C (harus eksplisit untuk bus recovery) ---
+const int PIN_SDA = D2;   // GPIO 4
+const int PIN_SCL = D1;   // GPIO 5
+
+// --- PIN JUMPER KONFIGURASI WIFI ---
+// Hubungkan pin ini ke GND dengan kabel jumper untuk masuk mode Captive Portal (Ganti WiFi)
+const int PIN_CONFIG = D5;
 
 // --- SETTING DEEP SLEEP ---
 const int SLEEP_SECONDS = 300; 
@@ -35,7 +41,6 @@ const float BATAS_PERINGATAN = 3.60;
 const uint32_t TIDUR_HEMAT_S = 3600;   // 1 jam saat baterai kritis
 
 // --- OBJEK ---
-ESP8266WiFiMulti wifiMulti;
 Adafruit_AHTX0 aht;
 Adafruit_BMP280 bmp;
 FirebaseData fbdo;
@@ -73,8 +78,69 @@ float bacaBaterai(int &rawKeluar) {
   return MULTIPLIER_BATERAI * rawKeluar;
 }
 
+/**
+ * Pemulihan bus I2C yang terkunci (M12).
+ *
+ * Saat deep sleep, GPIO ESP8266 mengambang sementara sensor tetap bertenaga.
+ * Jika transaksi I2C terpotong, slave bisa menahan SDA LOW tanpa batas waktu.
+ * Wire.begin() bawaan ESP8266 TIDAK melakukan bus clear.
+ *
+ * Prosedur (NXP I2C spec §3.1.16):
+ * 1. Cek apakah SDA stuck LOW
+ * 2. Kirim 9 pulsa clock pada SCL agar slave menyelesaikan byte tertunda
+ * 3. Bangkitkan kondisi STOP (SDA LOW→HIGH saat SCL HIGH)
+ *
+ * Dipanggil SEBELUM Wire.begin() di setiap boot / wake dari deep sleep.
+ */
+void pulihkanBusI2C() {
+  pinMode(PIN_SDA, INPUT_PULLUP);
+  pinMode(PIN_SCL, INPUT_PULLUP);
+  delay(1);   // beri waktu pull-up stabil
+
+  if (digitalRead(PIN_SDA) == HIGH) return;   // bus bersih, tidak perlu recovery
+
+  Serial.println("I2C SDA stuck LOW — menjalankan bus clear...");
+  pinMode(PIN_SCL, OUTPUT);
+  for (int i = 0; i < 9; i++) {
+    digitalWrite(PIN_SCL, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(PIN_SCL, LOW);
+    delayMicroseconds(5);
+  }
+  // Kondisi STOP: SDA naik sementara SCL tinggi
+  pinMode(PIN_SDA, OUTPUT);
+  digitalWrite(PIN_SDA, LOW);
+  delayMicroseconds(5);
+  digitalWrite(PIN_SCL, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(PIN_SDA, HIGH);
+  delayMicroseconds(5);
+  // Kembalikan ke input agar Wire.begin() bisa mengambil alih
+  pinMode(PIN_SDA, INPUT_PULLUP);
+  pinMode(PIN_SCL, INPUT_PULLUP);
+  delay(1);
+  Serial.println("Bus clear selesai.");
+}
+
+/**
+ * Kirim perintah soft reset (0xBA) ke AHT20 di alamat I2C 0x38.
+ * Mengembalikan sensor ke keadaan awal tanpa siklus daya (power cycle).
+ * Harus dipanggil SETELAH Wire.begin() atau setelah bus clear manual.
+ */
+void kirimSoftResetAHT20() {
+  Wire.begin(PIN_SDA, PIN_SCL);
+  Wire.beginTransmission(0x38);   // alamat default AHT20
+  Wire.write(0xBA);               // perintah soft reset (datasheet Aosong)
+  Wire.endTransmission();
+  delay(40);                      // datasheet: tunggu ≥20 ms setelah reset
+}
+
 void goToSleep() {
   Serial.println("Zzzzz....");
+  // Parkir pin I2C sebelum tidur agar tidak floating saat deep sleep.
+  // Mencegah slave salah baca sinyal acak dari pin mengambang.
+  pinMode(PIN_SDA, INPUT_PULLUP);
+  pinMode(PIN_SCL, INPUT_PULLUP);
   Serial.flush();                                       // jangan potong output serial
   ESP.deepSleep((uint64_t)SLEEP_SECONDS * 1000000ULL);  // cast: cegah overflow (m3)
   delay(100);                                           // WAJIB agar SDK benar-benar tidur (M6)
@@ -83,6 +149,9 @@ void goToSleep() {
 void setup() {
   Serial.begin(115200); 
   Serial.println("\n\n--- MULAI ---");
+
+  // Inisialisasi pin jumper konfigurasi WiFi (Pull-up internal)
+  pinMode(PIN_CONFIG, INPUT_PULLUP);
 
   // 1. BACA BATERAI PALING AWAL — radio masih mati, tidak ada sag (M5)
   teganganBaterai = bacaBaterai(rawBaterai);
@@ -97,17 +166,44 @@ void setup() {
     return;
   }
 
-  // 3. SETUP SENSOR I2C
-  Wire.begin(); 
+  // 3. SETUP SENSOR I2C (dengan bus recovery — M12)
+  //
+  // Masalah: selama deep sleep, 3V3 ke sensor tetap menyala tapi GPIO ESP
+  // mengambang. Jika transaksi I2C terpotong saat ESP tidur, slave (AHT20
+  // atau BMP280) bisa menahan SDA LOW menunggu clock yang tak pernah datang.
+  // Wire.begin() bawaan ESP8266 TIDAK melakukan bus clear.
+  //
+  // Solusi: NXP I2C spec §3.1.16 — 9 pulsa clock pada SCL memaksa slave
+  // menyelesaikan byte yang tertunda dan melepas SDA, diikuti kondisi STOP.
+  pulihkanBusI2C();
+  Wire.begin(PIN_SDA, PIN_SCL);
 
-  if (!aht.begin()) {
-    Serial.println("AHT20 Error!");
-    ahtStatus = false;
+  // Init sensor dengan satu kali retry jika gagal (bus mungkin baru pulih)
+  ahtStatus = aht.begin();
+  if (!ahtStatus) {
+    Serial.println("AHT20 init gagal, mencoba recovery...");
+    pulihkanBusI2C();
+    kirimSoftResetAHT20();          // soft reset 0xBA ke alamat 0x38
+    Wire.begin(PIN_SDA, PIN_SCL);   // re-init Wire setelah bus clear
+    ahtStatus = aht.begin();
+    if (!ahtStatus) Serial.println("AHT20 Error (setelah retry)!");
+    else Serial.println("AHT20 pulih setelah retry.");
   }
-  if (!bmp.begin(0x77)) { 
-    Serial.println("BMP280 Error!");
-    bmpStatus = false;
-  } else {
+
+  bmpStatus = bmp.begin(0x77);
+  if (!bmpStatus) {
+    // Coba alamat alternatif 0x76 (SDO ke GND, umum di modul murah)
+    bmpStatus = bmp.begin(0x76);
+  }
+  if (!bmpStatus) {
+    Serial.println("BMP280 init gagal, mencoba recovery...");
+    pulihkanBusI2C();
+    Wire.begin(PIN_SDA, PIN_SCL);
+    bmpStatus = bmp.begin(0x77) || bmp.begin(0x76);
+    if (!bmpStatus) Serial.println("BMP280 Error (setelah retry)!");
+    else Serial.println("BMP280 pulih setelah retry.");
+  }
+  if (bmpStatus) {
     // One-shot: benar untuk perangkat deep-sleep (M2).
     // FILTER_OFF karena IIR tak berguna untuk 1 sampel per 5 menit.
     bmp.setSampling(Adafruit_BMP280::MODE_FORCED,
@@ -117,20 +213,52 @@ void setup() {
                     Adafruit_BMP280::STANDBY_MS_1);
   }
 
-  // 4. KONEKSI WIFI — SATU panggilan run(timeout), bukan loop (M7)
-  WiFi.mode(WIFI_STA);
-  WiFi.persistent(false);          // stop tulis flash tiap wake
-  WiFi.setOutputPower(17.0);       // default 20,5 dBm berlebihan untuk dalam rumah
-  
-  wifiMulti.addAP(WIFI_SSID_1, WIFI_PASS_1);          
-  wifiMulti.addAP(WIFI_SSID_2, WIFI_PASS_2); 
-  wifiMulti.addAP(WIFI_SSID_3, WIFI_PASS_3); 
-  wifiMulti.addAP(WIFI_SSID_4, WIFI_PASS_4); 
-  wifiMulti.addAP(WIFI_SSID_5, WIFI_PASS_5); 
+  // 4. KONEKSI WIFI (WiFiManager / Deep Sleep Friendly)
+  // Masuk portal jika jumper terpasang ke GND (LOW) ATAU belum pernah ada WiFi tersimpan
+  bool butuhSetupWiFi = (digitalRead(PIN_CONFIG) == LOW) || (WiFi.SSID().length() == 0);
 
-  Serial.print("Mencari WiFi...");
-  if (wifiMulti.run(20000) != WL_CONNECTED) {
-    Serial.println("\nGagal Konek!");
+  if (butuhSetupWiFi) {
+    Serial.println("\n>>> MEMASUKI MODE KONFIGURASI WIFI (CAPTIVE PORTAL) <<<");
+    Serial.println("1. Hubungkan HP/Laptop ke WiFi: 'MonitoringSuhu-Setup'");
+    Serial.println("2. Halaman konfigurasi akan terbuka otomatis (atau buka IP 192.168.4.1)");
+    Serial.println("3. Pilih WiFi sekitar, ketik password, lalu klik Simpan.");
+
+    WiFiManager wm;
+    wm.setConfigPortalTimeout(180); // Timeout 3 menit untuk melindungi baterai jika ditinggal
+
+    if (!wm.startConfigPortal("MonitoringSuhu-Setup")) {
+      Serial.println("Konfigurasi timeout atau gagal terhubung.");
+      if (!DEBUG_MODE) { goToSleep(); return; }
+    } else {
+      Serial.printf("\nWiFi baru tersimpan! Terhubung ke: %s (%s)\n",
+                    WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+      Serial.println("PENTING: Segera lepas kabel jumper D5...");
+      // Tahan proses sampai jumper benar-benar dicabut oleh pengguna
+      while (digitalRead(PIN_CONFIG) == LOW) {
+        delay(200);
+      }
+      Serial.println("Jumper dilepas. Memulai ulang sistem...");
+      delay(500);
+      ESP.restart();
+      return;
+    }
+  }
+
+  // --- SIKLUS NORMAL (HEMAT DAYA & DEEP SLEEP FRIENDLY) ---
+  WiFi.mode(WIFI_STA);
+  WiFi.persistent(false);          // stop tulis flash tiap wake (cegah flash wear-out)
+  WiFi.setOutputPower(17.0);       // default 20.5 dBm berlebihan untuk dalam rumah
+  WiFi.begin();                    // panggil kredensial yang tersimpan di flash
+
+  Serial.print("Menghubungkan ke WiFi...");
+  unsigned long startKoneksi = millis();
+  while (WiFi.status() != WL_CONNECTED && (millis() - startKoneksi < 15000)) {
+    delay(100);
+    Serial.print(".");
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("\nGagal Konek (Timeout 15s)!");
     if (!DEBUG_MODE) { goToSleep(); return; }
   } else {
     Serial.printf("\nTerhubung: %s (%d dBm) %s\n",
@@ -165,8 +293,13 @@ void loop() {
     // Pastikan koneksi aktif sebelum memproses data dan menembak server
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("WiFi terputus, mencoba menyambung kembali...");
-      wifiMulti.run();
-    } else {
+      WiFi.reconnect();
+      unsigned long t0 = millis();
+      while (WiFi.status() != WL_CONNECTED && (millis() - t0 < 8000)) {
+        delay(100);
+      }
+    }
+    if (WiFi.status() == WL_CONNECTED) {
       processAndSendData();
     }
     delay(10000); // Tunggu 10 detik sebelum push data lagi
