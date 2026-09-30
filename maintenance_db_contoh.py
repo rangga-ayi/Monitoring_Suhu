@@ -12,7 +12,7 @@ FIREBASE_KEY_PATH = "firebase_adminsdk_contoh.json"
 # Ganti dengan URL Realtime Database Firebase Anda
 FIREBASE_DB_URL = "https://your-project-id-default-rtdb.asia-southeast1.firebasedatabase.app"
 
-# Rentang wajar sensor
+# Rentang wajar — samakan dengan firmware dan analisa_lab.py
 RENTANG_WAJAR = {"suhu": (-10, 60), "kelembapan": (1, 100), "tekanan": (950, 1050)}
 
 # ==========================================
@@ -51,61 +51,85 @@ keys_tanpa_timestamp = []
 jumlah_error = 0
 jumlah_usang = 0
 
-BATAS_HARI_SIMPAN = 30
-batas_waktu_ms = (datetime.datetime.now() - datetime.timedelta(days=BATAS_HARI_SIMPAN)).timestamp() * 1000
+# Hitung batas waktu 6 bulan yang lalu dalam milidetik (Epoch)
+batas_waktu_ms = (time.time() - (180 * 24 * 60 * 60)) * 1000
 
-for key, val in all_data.items():
-    if not isinstance(val, dict):
-        keys_to_delete.append(key)
+
+def sensor_valid_atau_absen(nama, data):
+    """True jika field absen (diizinkan untuk data sensor parsial) atau nilainya dalam rentang wajar."""
+    nilai = data.get(nama)
+    if nilai is None:
+        return True
+    try:
+        val = float(nilai)
+    except (ValueError, TypeError):
+        return False
+    if nama == "suhu" and (val <= 10 or val == -50):
+        return False
+    lo, hi = RENTANG_WAJAR[nama]
+    return lo <= val <= hi
+
+
+for push_key, data in all_data.items():
+    if not isinstance(data, dict):        # child non-object, masukkan ke antrean hapus
+        keys_to_delete.append(push_key)
         jumlah_error += 1
         continue
 
-    is_error = False
-    for sensor, (min_val, max_val) in RENTANG_WAJAR.items():
-        if sensor in val:
-            try:
-                v = float(val[sensor])
-                if v < min_val or v > max_val or (sensor == "suhu" and (v <= 10 or v == -50)):
-                    is_error = True
-                    break
-            except (ValueError, TypeError):
-                is_error = True
-                break
+    timestamp = data.get("timestamp")
+    if timestamp is None:
+        keys_tanpa_timestamp.append(push_key)   # JANGAN hapus otomatis — laporkan untuk review manual
+        continue
+
+    # Sensor mati total jika semua field sensor absen atau firmware mencatat kegagalan total
+    semua_sensor_kosong = (
+        data.get("suhu") is None
+        and data.get("kelembapan") is None
+        and data.get("tekanan") is None
+    )
+    status_sensor_gagal = data.get("status_sensor") == "semua_gagal"
+
+    # Periksa outlier / glitch pada sensor yang aktif mengirim data
+    sensor_rusak = (
+        not sensor_valid_atau_absen("suhu", data)
+        or not sensor_valid_atau_absen("kelembapan", data)
+        or not sensor_valid_atau_absen("tekanan", data)
+    )
+
+    is_error = semua_sensor_kosong or status_sensor_gagal or sensor_rusak
+    is_old = timestamp < batas_waktu_ms
 
     if is_error:
-        keys_to_delete.append(key)
         jumlah_error += 1
-        continue
+    elif is_old:
+        jumlah_usang += 1
+    if is_error or is_old:
+        keys_to_delete.append(push_key)
 
-    if "timestamp" in val:
-        try:
-            ts = float(val["timestamp"])
-            if ts < batas_waktu_ms:
-                keys_to_delete.append(key)
-                jumlah_usang += 1
-        except (ValueError, TypeError):
-            keys_tanpa_timestamp.append(key)
+# ==========================================
+# 5. EKSEKUSI PENGHAPUSAN
+# ==========================================
+print("\n--- HASIL ANALISIS DATABASE ---")
+print(f"Total data di Firebase : {len(all_data)} baris")
+print(f"Data Sensor Error      : {jumlah_error} baris")
+print(f"Data Lebih dari 6 Bulan: {jumlah_usang} baris")
+print("-------------------------------")
+
+if keys_tanpa_timestamp:
+    print(f"PERINGATAN: {len(keys_tanpa_timestamp)} record tanpa timestamp — "
+          f"TIDAK dihapus, perlu review manual.")
+
+if len(keys_to_delete) > 0:
+    konfirmasi = input(f"Apakah Anda yakin ingin menghapus {len(keys_to_delete)} data tersebut dari Firebase? (y/n): ")
+    if konfirmasi.lower() == 'y':
+        print("[4/4] Menghapus data dari Firebase (batch)...")
+        UKURAN_BATCH = 500
+        for i in range(0, len(keys_to_delete), UKURAN_BATCH):
+            potongan = keys_to_delete[i:i + UKURAN_BATCH]
+            ref.update({k: None for k in potongan})    # satu request per batch, bukan per record
+            print(f"  {min(i + UKURAN_BATCH, len(keys_to_delete))}/{len(keys_to_delete)}")
+        print("PEMBERSIHAN SELESAI! Database kini sudah bersih.")
     else:
-        keys_tanpa_timestamp.append(key)
-
-print(f"Total data ditemukan: {len(all_data)}")
-print(f"- Data error/rusak : {jumlah_error}")
-print(f"- Data usang (>30h) : {jumlah_usang}")
-print(f"- Data tanpa waktu : {len(keys_tanpa_timestamp)}")
-print(f"Total antrean hapus : {len(keys_to_delete)}")
-
-if not keys_to_delete:
-    print("Database sudah bersih, tidak ada data yang perlu dihapus.")
-    exit()
-
-# ==========================================
-# 5. KONFIRMASI PENGHAPUSAN
-# ==========================================
-konfirmasi = input("\nApakah Anda yakin ingin MENGHAPUS data tersebut dari Firebase? (y/n): ")
-if konfirmasi.lower() == 'y':
-    print("Menghapus data di Firebase...")
-    update_dict = {key: None for key in keys_to_delete}
-    ref.update(update_dict)
-    print("Pembersihan database selesai!")
+        print("Penghapusan dibatalkan. Data tetap aman.")
 else:
-    print("Operasi dibatalkan. Data tidak dihapus.")
+    print("Tidak ditemukan data error maupun usang. Database sudah bersih!")
